@@ -38,110 +38,119 @@ const AdminCourseAnalytics = () => {
     try {
       console.log('Fetching course analytics data...');
       
-      // Fetch courses with their enrollment and progress data
+      // First, fetch all courses
       const { data: coursesData, error: coursesError } = await supabase
         .from('courses')
-        .select(`
-          id,
-          title,
-          instructor,
-          difficulty,
-          price,
-          thumbnail,
-          category,
-          duration,
-          enrollment_count,
-          enrollments (
-            id,
-            progress
-          ),
-          course_modules (
-            id,
-            module_videos (
-              id,
-              duration
-            )
-          )
-        `);
+        .select('*');
 
       if (coursesError) {
         console.error('Error fetching courses:', coursesError);
         return;
       }
 
-      if (coursesData) {
-        // Process course data to calculate analytics
-        const processedCourses: CourseAnalytics[] = coursesData.map(course => {
-          const enrollments = course.enrollments || [];
-          const enrollmentCount = course.enrollment_count || 0;
-          
-          // Calculate completion rate
-          const completedEnrollments = enrollments.filter(e => e.progress >= 100).length;
-          const completionRate = enrollmentCount > 0 
-            ? Math.round((completedEnrollments / enrollmentCount) * 100)
-            : 0;
-
-          // Calculate average progress
-          const averageProgress = enrollments.length > 0
-            ? Math.round(enrollments.reduce((sum, e) => sum + (e.progress || 0), 0) / enrollments.length)
-            : 0;
-
-          // Calculate total duration from videos
-          const allVideos = course.course_modules?.flatMap(module => module.module_videos || []) || [];
-          const totalMinutes = allVideos.reduce((sum, video) => {
-            // Parse duration string (e.g., "10:30" or "1:05:30")
-            const parts = video.duration.split(':');
-            if (parts.length === 2) {
-              return sum + parseInt(parts[0]) + parseInt(parts[1]) / 60;
-            } else if (parts.length === 3) {
-              return sum + parseInt(parts[0]) * 60 + parseInt(parts[1]) + parseInt(parts[2]) / 60;
-            }
-            return sum;
-          }, 0);
-          
-          const hours = Math.floor(totalMinutes / 60);
-          const minutes = Math.round(totalMinutes % 60);
-          const totalDuration = `${hours}h ${minutes}m`;
-
-          return {
-            id: course.id,
-            title: course.title,
-            instructor: course.instructor,
-            difficulty: course.difficulty,
-            price: course.price,
-            thumbnail: course.thumbnail || '',
-            category: course.category || course.difficulty,
-            enrollmentCount,
-            completionRate,
-            averageProgress,
-            totalDuration
-          };
-        });
-
-        setCourseAnalytics(processedCourses);
-
-        // Calculate overall statistics
-        const totalEnrollments = processedCourses.reduce((sum, course) => sum + course.enrollmentCount, 0);
-        const averageCompletion = processedCourses.length > 0
-          ? Math.round(processedCourses.reduce((sum, course) => sum + course.completionRate, 0) / processedCourses.length)
-          : 0;
-        const activeCourses = processedCourses.length;
-
-        // Calculate total watch time (simplified estimation)
-        const totalWatchTimeHours = processedCourses.reduce((sum, course) => {
-          const hours = parseInt(course.totalDuration.split('h')[0]) || 0;
-          return sum + hours * course.enrollmentCount * 0.7; // Assume 70% watch rate
-        }, 0);
-
-        setStats({
-          totalEnrollments,
-          averageCompletion,
-          activeCourses,
-          totalWatchTime: `${Math.round(totalWatchTimeHours)}h`
-        });
-
-        console.log('Course analytics fetched successfully:', activeCourses, 'courses');
+      if (!coursesData) {
+        console.log('No courses found');
+        setLoading(false);
+        return;
       }
+
+      // Fetch all enrollments
+      const { data: enrollmentsData, error: enrollmentsError } = await supabase
+        .from('enrollments')
+        .select('course_id, progress, user_id');
+
+      if (enrollmentsError) {
+        console.error('Error fetching enrollments:', enrollmentsError);
+      }
+
+      // Fetch all modules and videos for duration calculation
+      const { data: modulesData, error: modulesError } = await supabase
+        .from('course_modules')
+        .select('id, course_id');
+
+      const { data: videosData, error: videosError } = await supabase
+        .from('module_videos')
+        .select('module_id, duration');
+
+      if (modulesError) console.error('Error fetching modules:', modulesError);
+      if (videosError) console.error('Error fetching videos:', videosError);
+
+      // Process course data to calculate analytics
+      const processedCourses: CourseAnalytics[] = coursesData.map(course => {
+        // Get enrollments for this course
+        const courseEnrollments = enrollmentsData?.filter(e => e.course_id === course.id) || [];
+        const enrollmentCount = courseEnrollments.length;
+        
+        // Calculate completion rate (progress >= 100)
+        const completedEnrollments = courseEnrollments.filter(e => e.progress >= 100).length;
+        const completionRate = enrollmentCount > 0 
+          ? Math.round((completedEnrollments / enrollmentCount) * 100)
+          : 0;
+
+        // Calculate average progress
+        const averageProgress = enrollmentCount > 0
+          ? Math.round(courseEnrollments.reduce((sum, e) => sum + (e.progress || 0), 0) / enrollmentCount)
+          : 0;
+
+        // Calculate total duration from videos
+        const courseModules = modulesData?.filter(m => m.course_id === course.id) || [];
+        const courseVideos = videosData?.filter(v => 
+          courseModules.some(m => m.id === v.module_id)
+        ) || [];
+        
+        const totalMinutes = courseVideos.reduce((sum, video) => {
+          // Parse duration string (e.g., "10:30" or "1:05:30")
+          const parts = video.duration.split(':');
+          if (parts.length === 2) {
+            return sum + parseInt(parts[0]) + parseInt(parts[1]) / 60;
+          } else if (parts.length === 3) {
+            return sum + parseInt(parts[0]) * 60 + parseInt(parts[1]) + parseInt(parts[2]) / 60;
+          }
+          return sum;
+        }, 0);
+        
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = Math.round(totalMinutes % 60);
+        const totalDuration = `${hours}h ${minutes}m`;
+
+        return {
+          id: course.id,
+          title: course.title,
+          instructor: course.instructor,
+          difficulty: course.difficulty,
+          price: course.price,
+          thumbnail: course.thumbnail || '',
+          category: course.category || course.difficulty,
+          enrollmentCount,
+          completionRate,
+          averageProgress,
+          totalDuration
+        };
+      });
+
+      setCourseAnalytics(processedCourses);
+
+      // Calculate overall statistics
+      const totalEnrollments = enrollmentsData?.length || 0;
+      const averageCompletion = processedCourses.length > 0
+        ? Math.round(processedCourses.reduce((sum, course) => sum + course.completionRate, 0) / processedCourses.length)
+        : 0;
+      const activeCourses = processedCourses.length;
+
+      // Calculate total watch time (simplified estimation)
+      const totalWatchTimeHours = processedCourses.reduce((sum, course) => {
+        const hours = parseInt(course.totalDuration.split('h')[0]) || 0;
+        return sum + hours * course.enrollmentCount * 0.7; // Assume 70% watch rate
+      }, 0);
+
+      setStats({
+        totalEnrollments,
+        averageCompletion,
+        activeCourses,
+        totalWatchTime: `${Math.round(totalWatchTimeHours)}h`
+      });
+
+      console.log('Course analytics fetched successfully:', activeCourses, 'courses');
     } catch (error) {
       console.error('Error fetching course analytics:', error);
     } finally {

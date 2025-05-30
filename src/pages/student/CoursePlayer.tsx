@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
@@ -46,6 +47,7 @@ const StudentCoursePlayer = () => {
   const [currentVideo, setCurrentVideo] = useState<Video | null>(null);
   const [completedVideos, setCompletedVideos] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentProgress, setCurrentProgress] = useState(0);
 
   useEffect(() => {
     if (courseId && user) {
@@ -53,6 +55,20 @@ const StudentCoursePlayer = () => {
       fetchUserProgress();
     }
   }, [courseId, user]);
+
+  // Calculate progress whenever completedVideos or modules change
+  useEffect(() => {
+    const totalVideos = modules.reduce((acc, module) => acc + (module.module_videos?.length || 0), 0);
+    const completedCount = completedVideos.length;
+    const progressPercentage = totalVideos > 0 ? Math.round((completedCount / totalVideos) * 100) : 0;
+    setCurrentProgress(progressPercentage);
+    
+    console.log('Progress calculation:', {
+      totalVideos,
+      completedCount,
+      progressPercentage
+    });
+  }, [completedVideos, modules]);
 
   const fetchCourseData = async () => {
     if (!courseId) return;
@@ -74,98 +90,42 @@ const StudentCoursePlayer = () => {
 
       setCourse(courseData);
 
-      // Fetch modules with videos using the correct relationship
+      // Fetch modules with videos
       const { data: modulesData, error: modulesError } = await supabase
         .from('course_modules')
-        .select(`
-          *,
-          module_videos!fk_module_videos_module_id (*)
-        `)
+        .select('*')
         .eq('course_id', courseId)
         .order('order_index');
 
       if (modulesError) {
         console.error('Error fetching modules:', modulesError);
-        // If the specific relationship doesn't work, try the alternative
-        const { data: altModulesData, error: altModulesError } = await supabase
-          .from('course_modules')
-          .select(`
-            *,
-            module_videos!module_videos_module_id_fkey (*)
-          `)
-          .eq('course_id', courseId)
-          .order('order_index');
-
-        if (altModulesError) {
-          console.error('Error with alternative modules query:', altModulesError);
-          // If both fail, try without the relationship
-          const { data: simpleModulesData, error: simpleModulesError } = await supabase
-            .from('course_modules')
-            .select('*')
-            .eq('course_id', courseId)
-            .order('order_index');
-
-          if (simpleModulesError) {
-            console.error('Error fetching simple modules:', simpleModulesError);
-            return;
-          }
-
-          if (simpleModulesData) {
-            // Fetch videos separately for each module
-            const modulesWithVideos = await Promise.all(
-              simpleModulesData.map(async (module) => {
-                const { data: videos, error: videosError } = await supabase
-                  .from('module_videos')
-                  .select('*')
-                  .eq('module_id', module.id)
-                  .order('order_index');
-
-                if (videosError) {
-                  console.error('Error fetching videos for module:', module.id, videosError);
-                  return { ...module, module_videos: [] };
-                }
-
-                return { ...module, module_videos: videos || [] };
-              })
-            );
-
-            setModules(modulesWithVideos);
-            
-            // Set first video as current
-            if (modulesWithVideos.length > 0 && modulesWithVideos[0].module_videos?.length > 0) {
-              setCurrentVideo(modulesWithVideos[0].module_videos[0]);
-            }
-          }
-          return;
-        }
-
-        if (altModulesData) {
-          const sortedModules = altModulesData.map(module => ({
-            ...module,
-            module_videos: module.module_videos?.sort((a, b) => a.order_index - b.order_index) || []
-          }));
-          
-          setModules(sortedModules);
-          
-          if (sortedModules.length > 0 && sortedModules[0].module_videos?.length > 0) {
-            setCurrentVideo(sortedModules[0].module_videos[0]);
-          }
-        }
         return;
       }
 
       if (modulesData) {
-        // Sort videos within each module
-        const sortedModules = modulesData.map(module => ({
-          ...module,
-          module_videos: module.module_videos?.sort((a, b) => a.order_index - b.order_index) || []
-        }));
-        
-        setModules(sortedModules);
+        // Fetch videos for each module separately
+        const modulesWithVideos = await Promise.all(
+          modulesData.map(async (module) => {
+            const { data: videos, error: videosError } = await supabase
+              .from('module_videos')
+              .select('*')
+              .eq('module_id', module.id)
+              .order('order_index');
+
+            if (videosError) {
+              console.error('Error fetching videos for module:', module.id, videosError);
+              return { ...module, module_videos: [] };
+            }
+
+            return { ...module, module_videos: videos || [] };
+          })
+        );
+
+        setModules(modulesWithVideos);
         
         // Set first video as current
-        if (sortedModules.length > 0 && sortedModules[0].module_videos?.length > 0) {
-          setCurrentVideo(sortedModules[0].module_videos[0]);
+        if (modulesWithVideos.length > 0 && modulesWithVideos[0].module_videos?.length > 0) {
+          setCurrentVideo(modulesWithVideos[0].module_videos[0]);
         }
         
         console.log('Course data fetched successfully');
@@ -194,8 +154,9 @@ const StudentCoursePlayer = () => {
       }
 
       if (data) {
-        setCompletedVideos(data.map(item => item.video_id));
-        console.log('User progress fetched:', data.length, 'completed videos');
+        const completedVideoIds = data.map(item => item.video_id);
+        setCompletedVideos(completedVideoIds);
+        console.log('User progress fetched:', completedVideoIds.length, 'completed videos');
       }
     } catch (error) {
       console.error('Error fetching user progress:', error);
@@ -221,7 +182,12 @@ const StudentCoursePlayer = () => {
           return;
         }
 
-        setCompletedVideos(completedVideos.filter(id => id !== videoId));
+        const newCompletedVideos = completedVideos.filter(id => id !== videoId);
+        setCompletedVideos(newCompletedVideos);
+        
+        // Update enrollment progress immediately
+        await updateEnrollmentProgress(newCompletedVideos);
+        
         toast({
           title: "Video marked as incomplete",
           description: "You can re-watch this video anytime",
@@ -242,28 +208,39 @@ const StudentCoursePlayer = () => {
           return;
         }
 
-        setCompletedVideos([...completedVideos, videoId]);
+        const newCompletedVideos = [...completedVideos, videoId];
+        setCompletedVideos(newCompletedVideos);
+        
+        // Update enrollment progress immediately
+        await updateEnrollmentProgress(newCompletedVideos);
+
         toast({
           title: "Video completed!",
           description: "Great job! Keep up the learning momentum.",
         });
-
-        // Update enrollment progress
-        await updateEnrollmentProgress();
       }
     } catch (error) {
       console.error('Error toggling video completion:', error);
     }
   };
 
-  const updateEnrollmentProgress = async () => {
+  const updateEnrollmentProgress = async (completedVideosList?: string[]) => {
     if (!courseId || !user) return;
 
     try {
+      // Use provided list or current state
+      const videosCompleted = completedVideosList || completedVideos;
+      
       // Calculate total videos and completed videos
       const totalVideos = modules.reduce((acc, module) => acc + (module.module_videos?.length || 0), 0);
-      const completedCount = completedVideos.length + 1; // +1 for the video just completed
-      const progressPercentage = Math.round((completedCount / totalVideos) * 100);
+      const completedCount = videosCompleted.length;
+      const progressPercentage = totalVideos > 0 ? Math.round((completedCount / totalVideos) * 100) : 0;
+
+      console.log('Updating enrollment progress:', {
+        totalVideos,
+        completedCount,
+        progressPercentage
+      });
 
       // Update enrollment progress
       const { error } = await supabase
@@ -276,6 +253,7 @@ const StudentCoursePlayer = () => {
         console.error('Error updating enrollment progress:', error);
       } else {
         console.log('Enrollment progress updated to:', progressPercentage);
+        setCurrentProgress(progressPercentage);
       }
     } catch (error) {
       console.error('Error updating enrollment progress:', error);
@@ -309,7 +287,6 @@ const StudentCoursePlayer = () => {
 
   const totalVideos = modules.reduce((acc, module) => acc + (module.module_videos?.length || 0), 0);
   const completedCount = completedVideos.length;
-  const progressPercentage = totalVideos > 0 ? Math.round((completedCount / totalVideos) * 100) : 0;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -327,7 +304,7 @@ const StudentCoursePlayer = () => {
             </Link>
             <div>
               <h1 className="text-2xl font-bold">{course.title}</h1>
-              <p className="text-gray-600">Progress: {progressPercentage}% ({completedCount}/{totalVideos} videos)</p>
+              <p className="text-gray-600">Progress: {currentProgress}% ({completedCount}/{totalVideos} videos)</p>
             </div>
           </div>
         </div>
