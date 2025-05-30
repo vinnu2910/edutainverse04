@@ -22,6 +22,7 @@ interface Course {
   thumbnail: string;
   category: string;
   enrollment_count: number;
+  actual_enrollment_count?: number;
 }
 
 const StudentCourses = () => {
@@ -44,6 +45,8 @@ const StudentCourses = () => {
   const fetchCourses = async () => {
     try {
       console.log('Fetching courses for student...');
+      
+      // Fetch basic courses data
       const { data, error } = await supabase
         .from('courses')
         .select('*')
@@ -55,8 +58,25 @@ const StudentCourses = () => {
       }
 
       if (data) {
-        setCourses(data);
-        console.log('Student courses fetched successfully:', data.length);
+        // Fetch actual enrollment counts for each course
+        const coursesWithCounts = await Promise.all(
+          data.map(async (course) => {
+            const { count, error: countError } = await supabase
+              .from('enrollments')
+              .select('*', { count: 'exact', head: true })
+              .eq('course_id', course.id);
+              
+            if (countError) {
+              console.error('Error fetching enrollment count for course:', course.id, countError);
+              return { ...course, actual_enrollment_count: 0 };
+            }
+            
+            return { ...course, actual_enrollment_count: count || 0 };
+          })
+        );
+        
+        setCourses(coursesWithCounts);
+        console.log('Student courses fetched successfully with actual enrollment counts:', coursesWithCounts.length);
       }
     } catch (error) {
       console.error('Error fetching courses:', error);
@@ -137,6 +157,10 @@ const StudentCourses = () => {
       }
 
       setEnrolledCourses([...enrolledCourses, courseId]);
+      
+      // Refresh courses to update enrollment count
+      fetchCourses();
+      
       toast({
         title: "Success!",
         description: "You have successfully enrolled in the course",
@@ -288,7 +312,9 @@ const StudentCourses = () => {
                 <div className="flex items-center justify-between text-sm text-gray-600 mb-4">
                   <div className="flex items-center">
                     <Users className="w-4 h-4 mr-1" />
-                    {course.enrollment_count} students
+                    {course.actual_enrollment_count !== undefined 
+                      ? course.actual_enrollment_count 
+                      : course.enrollment_count} students
                   </div>
                   <div className="flex items-center">
                     <Clock className="w-4 h-4 mr-1" />

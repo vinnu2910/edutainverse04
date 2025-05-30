@@ -56,18 +56,24 @@ const StudentCoursePlayer = () => {
     }
   }, [courseId, user]);
 
-  // Calculate progress whenever completedVideos or modules change
+  // Calculate and update progress whenever completedVideos or modules change
   useEffect(() => {
     const totalVideos = modules.reduce((acc, module) => acc + (module.module_videos?.length || 0), 0);
     const completedCount = completedVideos.length;
     const progressPercentage = totalVideos > 0 ? Math.round((completedCount / totalVideos) * 100) : 0;
-    setCurrentProgress(progressPercentage);
     
     console.log('Progress calculation:', {
       totalVideos,
       completedCount,
-      progressPercentage
+      progressPercentage,
+      currentProgress
     });
+
+    // Only update if progress has changed
+    if (progressPercentage !== currentProgress) {
+      setCurrentProgress(progressPercentage);
+      updateEnrollmentProgress(progressPercentage, completedVideos);
+    }
   }, [completedVideos, modules]);
 
   const fetchCourseData = async () => {
@@ -185,9 +191,6 @@ const StudentCoursePlayer = () => {
         const newCompletedVideos = completedVideos.filter(id => id !== videoId);
         setCompletedVideos(newCompletedVideos);
         
-        // Update enrollment progress immediately
-        await updateEnrollmentProgress(newCompletedVideos);
-        
         toast({
           title: "Video marked as incomplete",
           description: "You can re-watch this video anytime",
@@ -210,9 +213,6 @@ const StudentCoursePlayer = () => {
 
         const newCompletedVideos = [...completedVideos, videoId];
         setCompletedVideos(newCompletedVideos);
-        
-        // Update enrollment progress immediately
-        await updateEnrollmentProgress(newCompletedVideos);
 
         toast({
           title: "Video completed!",
@@ -224,23 +224,11 @@ const StudentCoursePlayer = () => {
     }
   };
 
-  const updateEnrollmentProgress = async (completedVideosList?: string[]) => {
+  const updateEnrollmentProgress = async (progressPercentage: number, completedVideosList: string[]) => {
     if (!courseId || !user) return;
 
     try {
-      // Use provided list or current state
-      const videosCompleted = completedVideosList || completedVideos;
-      
-      // Calculate total videos and completed videos
-      const totalVideos = modules.reduce((acc, module) => acc + (module.module_videos?.length || 0), 0);
-      const completedCount = videosCompleted.length;
-      const progressPercentage = totalVideos > 0 ? Math.round((completedCount / totalVideos) * 100) : 0;
-
-      console.log('Updating enrollment progress:', {
-        totalVideos,
-        completedCount,
-        progressPercentage
-      });
+      console.log('Updating enrollment progress to:', progressPercentage);
 
       // Update enrollment progress
       const { error } = await supabase
@@ -252,8 +240,7 @@ const StudentCoursePlayer = () => {
       if (error) {
         console.error('Error updating enrollment progress:', error);
       } else {
-        console.log('Enrollment progress updated to:', progressPercentage);
-        setCurrentProgress(progressPercentage);
+        console.log('Enrollment progress updated successfully to:', progressPercentage);
       }
     } catch (error) {
       console.error('Error updating enrollment progress:', error);

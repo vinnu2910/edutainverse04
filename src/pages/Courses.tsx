@@ -20,6 +20,7 @@ interface Course {
   thumbnail: string;
   category: string;
   enrollment_count: number;
+  actual_enrollment_count?: number;
 }
 
 const Courses = () => {
@@ -35,19 +36,73 @@ const Courses = () => {
   const fetchCourses = async () => {
     try {
       console.log('Fetching courses from database...');
+      
+      // Fetch courses with actual enrollment counts
       const { data, error } = await supabase
         .from('courses')
-        .select('*')
+        .select(`
+          *,
+          enrollments!inner(count)
+        `)
         .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching courses:', error);
+        // Fallback to basic course fetch if the join fails
+        const { data: basicData, error: basicError } = await supabase
+          .from('courses')
+          .select('*')
+          .order('created_at', { ascending: false });
+          
+        if (basicError) {
+          console.error('Error fetching basic courses:', basicError);
+          return;
+        }
+        
+        if (basicData) {
+          // Fetch enrollment counts separately
+          const coursesWithCounts = await Promise.all(
+            basicData.map(async (course) => {
+              const { count, error: countError } = await supabase
+                .from('enrollments')
+                .select('*', { count: 'exact', head: true })
+                .eq('course_id', course.id);
+                
+              if (countError) {
+                console.error('Error fetching enrollment count for course:', course.id, countError);
+                return { ...course, actual_enrollment_count: 0 };
+              }
+              
+              return { ...course, actual_enrollment_count: count || 0 };
+            })
+          );
+          
+          setCourses(coursesWithCounts);
+          console.log('Courses fetched with enrollment counts:', coursesWithCounts.length);
+        }
         return;
       }
 
       if (data) {
-        setCourses(data);
-        console.log('Courses fetched successfully:', data.length);
+        // Process the data to include actual enrollment counts
+        const coursesWithCounts = await Promise.all(
+          data.map(async (course) => {
+            const { count, error: countError } = await supabase
+              .from('enrollments')
+              .select('*', { count: 'exact', head: true })
+              .eq('course_id', course.id);
+              
+            if (countError) {
+              console.error('Error fetching enrollment count for course:', course.id, countError);
+              return { ...course, actual_enrollment_count: 0 };
+            }
+            
+            return { ...course, actual_enrollment_count: count || 0 };
+          })
+        );
+        
+        setCourses(coursesWithCounts);
+        console.log('Courses fetched successfully with actual enrollment counts:', coursesWithCounts.length);
       }
     } catch (error) {
       console.error('Error fetching courses:', error);
@@ -120,7 +175,7 @@ const Courses = () => {
                 />
                 <div className="flex justify-between items-start mb-2">
                   <CardTitle className="text-lg">{course.title}</CardTitle>
-                  <span className={`px-2 py-1 rounded text-xs font-medium {
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${
                     course.difficulty === 'Beginner' ? 'bg-green-100 text-green-800' :
                     course.difficulty === 'Average' ? 'bg-yellow-100 text-yellow-800' :
                     'bg-red-100 text-red-800'
@@ -134,7 +189,9 @@ const Courses = () => {
                 <div className="flex items-center justify-between text-sm text-gray-600 mb-4">
                   <div className="flex items-center">
                     <Users className="w-4 h-4 mr-1" />
-                    {course.enrollment_count} students
+                    {course.actual_enrollment_count !== undefined 
+                      ? course.actual_enrollment_count 
+                      : course.enrollment_count} students
                   </div>
                   <div className="flex items-center">
                     <Clock className="w-4 h-4 mr-1" />
