@@ -77,14 +77,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.log('Attempting signup for:', email);
       
       // Check if user already exists
-      const { data: existingUser } = await supabase
+      const { data: existingUser, error: checkError } = await supabase
         .from('users')
         .select('email')
         .eq('email', email)
-        .single();
+        .maybeSingle();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('Error checking existing user:', checkError);
+        return false;
+      }
 
       if (existingUser) {
-        console.log('User already exists');
+        console.log('User already exists with email:', email);
         return false;
       }
 
@@ -92,13 +97,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const saltRounds = 10;
       const hashedPassword = await bcrypt.hash(password, saltRounds);
 
+      console.log('Creating new user with hashed password');
+
       // Create new user in database
-      const { data: newUserData, error } = await supabase
+      const { data: newUserData, error: insertError } = await supabase
         .from('users')
         .insert([
           {
-            name,
-            email,
+            name: name.trim(),
+            email: email.toLowerCase().trim(),
             password_hash: hashedPassword,
             role: 'student'
           }
@@ -106,12 +113,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .select()
         .single();
 
-      if (error) {
-        console.error('Signup error:', error);
+      if (insertError) {
+        console.error('Signup error - failed to insert user:', insertError);
         return false;
       }
 
       if (newUserData) {
+        console.log('User created successfully:', newUserData);
+        
         const newUser: User = {
           id: newUserData.id,
           name: newUserData.name,
@@ -125,6 +134,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return true;
       }
       
+      console.error('No user data returned after insert');
       return false;
     } catch (error) {
       console.error('Signup error:', error);

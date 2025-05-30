@@ -22,6 +22,25 @@ const SignUp = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validation
+    if (!name.trim()) {
+      toast({
+        title: "Name is required",
+        description: "Please enter your full name.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!email.trim()) {
+      toast({
+        title: "Email is required",
+        description: "Please enter a valid email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (password !== confirmPassword) {
       toast({
         title: "Passwords don't match",
@@ -43,7 +62,9 @@ const SignUp = () => {
     setIsSubmitting(true);
 
     try {
-      const success = await signup(name, email, password);
+      console.log('Starting signup process...');
+      const success = await signup(name.trim(), email.toLowerCase().trim(), password);
+      
       if (success) {
         toast({
           title: "Account created successfully!",
@@ -53,14 +74,15 @@ const SignUp = () => {
       } else {
         toast({
           title: "Signup failed",
-          description: "Email already exists or there was an error creating your account.",
+          description: "Email already exists or there was an error creating your account. Please try again.",
           variant: "destructive",
         });
       }
     } catch (error) {
+      console.error('Signup error in component:', error);
       toast({
         title: "Signup failed",
-        description: "Please try again.",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -100,6 +122,7 @@ const SignUp = () => {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="John Doe"
                   required
+                  disabled={isSubmitting}
                 />
               </div>
               
@@ -112,6 +135,7 @@ const SignUp = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="your@email.com"
                   required
+                  disabled={isSubmitting}
                 />
               </div>
               
@@ -125,6 +149,7 @@ const SignUp = () => {
                   placeholder="••••••••"
                   required
                   minLength={6}
+                  disabled={isSubmitting}
                 />
                 <p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
               </div>
@@ -138,6 +163,7 @@ const SignUp = () => {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
                   required
+                  disabled={isSubmitting}
                 />
               </div>
               
