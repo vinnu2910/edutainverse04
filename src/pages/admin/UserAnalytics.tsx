@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,23 +34,10 @@ const AdminUserAnalytics = () => {
     try {
       console.log('UserAnalytics: Fetching user analytics data...');
       
-      // Fetch all users with their enrollment and progress data
+      // Fetch all users first
       const { data: usersData, error: usersError } = await supabase
         .from('users')
-        .select(`
-          id,
-          name,
-          email,
-          created_at,
-          enrollments (
-            id,
-            progress,
-            courses (
-              id,
-              title
-            )
-          )
-        `)
+        .select('id, name, email, created_at')
         .order('created_at', { ascending: false });
 
       if (usersError) {
@@ -62,19 +48,28 @@ const AdminUserAnalytics = () => {
       if (usersData) {
         console.log('UserAnalytics: Raw users data fetched:', usersData.length, 'users');
         
+        // Fetch enrollments separately to avoid relationship ambiguity
+        const { data: enrollmentsData, error: enrollmentsError } = await supabase
+          .from('enrollments')
+          .select('user_id, progress, course_id');
+
+        if (enrollmentsError) {
+          console.error('UserAnalytics: Error fetching enrollments:', enrollmentsError);
+        }
+
         // Process user data to calculate statistics
         const processedUsers: UserData[] = usersData.map(user => {
-          const enrollments = user.enrollments || [];
-          const enrolledCourses = enrollments.length;
-          const completedCourses = enrollments.filter(e => e.progress >= 100).length;
-          const totalProgress = enrollments.length > 0 
-            ? Math.round(enrollments.reduce((sum, e) => sum + (e.progress || 0), 0) / enrollments.length)
+          const userEnrollments = enrollmentsData?.filter(e => e.user_id === user.id) || [];
+          const enrolledCourses = userEnrollments.length;
+          const completedCourses = userEnrollments.filter(e => e.progress >= 100).length;
+          const totalProgress = userEnrollments.length > 0 
+            ? Math.round(userEnrollments.reduce((sum, e) => sum + (e.progress || 0), 0) / userEnrollments.length)
             : 0;
 
           return {
             id: user.id,
-            name: user.name,
-            email: user.email,
+            name: user.name || 'Unknown User',
+            email: user.email || 'No email',
             enrolledCourses,
             completedCourses,
             totalProgress,

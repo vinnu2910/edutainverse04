@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
@@ -9,16 +8,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Trash2, Save, ArrowLeft } from 'lucide-react';
+import { Plus, Trash2, Save, ArrowLeft, Video } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
 interface Video {
   id: string;
   title: string;
-  youtubeId: string;
+  youtube_id: string;
   duration: string;
-  order: number;
+  order_index: number;
 }
 
 interface Module {
@@ -26,7 +25,7 @@ interface Module {
   title: string;
   description: string;
   videos: Video[];
-  order: number;
+  order_index: number;
 }
 
 interface Course {
@@ -74,6 +73,7 @@ const AdminCourseEditor = () => {
       setLoading(true);
       console.log('CourseEditor: Loading course:', id);
       
+      // Load course basic info
       const { data: courseData, error: courseError } = await supabase
         .from('courses')
         .select('*')
@@ -90,11 +90,55 @@ const AdminCourseEditor = () => {
         return;
       }
 
+      // Load course modules
+      const { data: modulesData, error: modulesError } = await supabase
+        .from('course_modules')
+        .select('*')
+        .eq('course_id', id)
+        .order('order_index');
+
+      if (modulesError) {
+        console.error('CourseEditor: Error loading modules:', modulesError);
+      }
+
+      // Load all videos for the modules
+      const moduleIds = modulesData?.map(m => m.id) || [];
+      let videosData: any[] = [];
+      
+      if (moduleIds.length > 0) {
+        const { data: videos, error: videosError } = await supabase
+          .from('module_videos')
+          .select('*')
+          .in('module_id', moduleIds)
+          .order('order_index');
+
+        if (videosError) {
+          console.error('CourseEditor: Error loading videos:', videosError);
+        } else {
+          videosData = videos || [];
+        }
+      }
+
+      // Combine modules with their videos
+      const modulesWithVideos = modulesData?.map(module => ({
+        id: module.id,
+        title: module.title,
+        description: module.description,
+        order_index: module.order_index,
+        videos: videosData.filter(video => video.module_id === module.id).map(video => ({
+          id: video.id,
+          title: video.title,
+          youtube_id: video.youtube_id,
+          duration: video.duration,
+          order_index: video.order_index
+        }))
+      })) || [];
+
       if (courseData) {
         console.log('CourseEditor: Course loaded:', courseData);
         setCourse({
           ...courseData,
-          modules: [] // For now, we'll work with basic course data
+          modules: modulesWithVideos
         });
       }
     } catch (error) {
@@ -111,11 +155,11 @@ const AdminCourseEditor = () => {
 
   const addModule = () => {
     const newModule: Module = {
-      id: Date.now().toString(),
+      id: `temp-${Date.now()}`,
       title: '',
       description: '',
       videos: [],
-      order: course.modules.length
+      order_index: course.modules.length
     };
     setCourse({
       ...course,
@@ -141,11 +185,11 @@ const AdminCourseEditor = () => {
 
   const addVideo = (moduleId: string) => {
     const newVideo: Video = {
-      id: Date.now().toString(),
+      id: `temp-${Date.now()}`,
       title: '',
-      youtubeId: '',
+      youtube_id: '',
       duration: '',
-      order: 0
+      order_index: 0
     };
 
     setCourse({
@@ -154,7 +198,7 @@ const AdminCourseEditor = () => {
         module.id === moduleId
           ? {
               ...module,
-              videos: [...module.videos, { ...newVideo, order: module.videos.length }]
+              videos: [...module.videos, { ...newVideo, order_index: module.videos.length }]
             }
           : module
       )
@@ -217,6 +261,8 @@ const AdminCourseEditor = () => {
         enrollment_count: 0
       };
 
+      let courseId = course.id;
+
       if (isNewCourse) {
         const { data, error } = await supabase
           .from('courses')
@@ -235,12 +281,8 @@ const AdminCourseEditor = () => {
         }
 
         if (data) {
+          courseId = data.id;
           console.log('CourseEditor: Course created:', data);
-          toast({
-            title: "Course created",
-            description: "Course has been created successfully",
-          });
-          navigate(`/admin/courses/${data.id}/edit`);
         }
       } else {
         const { error } = await supabase
@@ -257,12 +299,78 @@ const AdminCourseEditor = () => {
           });
           return;
         }
+      }
 
-        console.log('CourseEditor: Course updated successfully');
-        toast({
-          title: "Course updated",
-          description: "Course has been updated successfully",
-        });
+      // Save modules and videos
+      for (const module of course.modules) {
+        let moduleId = module.id;
+        
+        if (module.id.startsWith('temp-')) {
+          // Create new module
+          const { data: moduleData, error: moduleError } = await supabase
+            .from('course_modules')
+            .insert([{
+              course_id: courseId,
+              title: module.title,
+              description: module.description,
+              order_index: module.order_index
+            }])
+            .select()
+            .single();
+
+          if (moduleError) {
+            console.error('CourseEditor: Error creating module:', moduleError);
+            continue;
+          }
+          
+          moduleId = moduleData.id;
+        } else {
+          // Update existing module
+          await supabase
+            .from('course_modules')
+            .update({
+              title: module.title,
+              description: module.description,
+              order_index: module.order_index
+            })
+            .eq('id', module.id);
+        }
+
+        // Save videos
+        for (const video of module.videos) {
+          if (video.id.startsWith('temp-')) {
+            // Create new video
+            await supabase
+              .from('module_videos')
+              .insert([{
+                module_id: moduleId,
+                title: video.title,
+                youtube_id: video.youtube_id,
+                duration: video.duration,
+                order_index: video.order_index
+              }]);
+          } else {
+            // Update existing video
+            await supabase
+              .from('module_videos')
+              .update({
+                title: video.title,
+                youtube_id: video.youtube_id,
+                duration: video.duration,
+                order_index: video.order_index
+              })
+              .eq('id', video.id);
+          }
+        }
+      }
+
+      toast({
+        title: "Success",
+        description: isNewCourse ? "Course created successfully" : "Course updated successfully",
+      });
+
+      if (isNewCourse) {
+        navigate(`/admin/courses/${courseId}/edit`);
       }
     } catch (error) {
       console.error('CourseEditor: Error saving course:', error);
@@ -424,31 +532,126 @@ const AdminCourseEditor = () => {
                 <div className="flex justify-between items-center">
                   <div>
                     <CardTitle>Course Content</CardTitle>
-                    <CardDescription>Add modules and videos to your course (coming soon)</CardDescription>
+                    <CardDescription>Add modules and videos to your course</CardDescription>
                   </div>
-                  <Button onClick={addModule} disabled>
+                  <Button onClick={addModule}>
                     <Plus className="w-4 h-4 mr-2" />
                     Add Module
                   </Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="text-center py-12">
-                  <div className="text-gray-400 mb-4">
-                    <svg className="w-16 h-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
+                {course.modules.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Video className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+                    <h3 className="text-lg font-medium text-gray-600 mb-2">No modules yet</h3>
+                    <p className="text-gray-500 mb-4">
+                      Start building your course by adding modules and videos.
+                    </p>
+                    <Button onClick={addModule}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Your First Module
+                    </Button>
                   </div>
-                  <h3 className="text-lg font-medium text-gray-600 mb-2">Course Content Management</h3>
-                  <p className="text-gray-500 mb-4">
-                    Advanced content management with modules and videos is coming soon. 
-                    For now, focus on creating the basic course information.
-                  </p>
-                  <p className="text-sm text-gray-400">
-                    This feature will allow you to add structured modules with video lessons, 
-                    quizzes, and other learning materials.
-                  </p>
-                </div>
+                ) : (
+                  <div className="space-y-6">
+                    {course.modules.map((module, moduleIndex) => (
+                      <Card key={module.id} className="border-l-4 border-l-blue-500">
+                        <CardHeader>
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1 space-y-4">
+                              <div>
+                                <Label>Module Title</Label>
+                                <Input
+                                  value={module.title}
+                                  onChange={(e) => updateModule(module.id, 'title', e.target.value)}
+                                  placeholder="Enter module title"
+                                />
+                              </div>
+                              <div>
+                                <Label>Module Description</Label>
+                                <Textarea
+                                  value={module.description}
+                                  onChange={(e) => updateModule(module.id, 'description', e.target.value)}
+                                  placeholder="Enter module description"
+                                  rows={2}
+                                />
+                              </div>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => deleteModule(module.id)}
+                              className="ml-4"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex justify-between items-center mb-4">
+                            <h4 className="font-medium">Videos</h4>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => addVideo(module.id)}
+                            >
+                              <Plus className="w-4 h-4 mr-2" />
+                              Add Video
+                            </Button>
+                          </div>
+                          
+                          {module.videos.length === 0 ? (
+                            <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
+                              <Video className="w-8 h-8 mx-auto text-gray-400 mb-2" />
+                              <p className="text-gray-500">No videos in this module</p>
+                            </div>
+                          ) : (
+                            <div className="space-y-4">
+                              {module.videos.map((video, videoIndex) => (
+                                <div key={video.id} className="flex gap-4 p-4 border rounded-lg">
+                                  <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                      <Label>Video Title</Label>
+                                      <Input
+                                        value={video.title}
+                                        onChange={(e) => updateVideo(module.id, video.id, 'title', e.target.value)}
+                                        placeholder="Enter video title"
+                                      />
+                                    </div>
+                                    <div>
+                                      <Label>YouTube ID</Label>
+                                      <Input
+                                        value={video.youtube_id}
+                                        onChange={(e) => updateVideo(module.id, video.id, 'youtube_id', e.target.value)}
+                                        placeholder="YouTube video ID"
+                                      />
+                                    </div>
+                                    <div>
+                                      <Label>Duration</Label>
+                                      <Input
+                                        value={video.duration}
+                                        onChange={(e) => updateVideo(module.id, video.id, 'duration', e.target.value)}
+                                        placeholder="e.g., 10:30"
+                                      />
+                                    </div>
+                                  </div>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => deleteVideo(module.id, video.id)}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
