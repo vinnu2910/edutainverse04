@@ -33,61 +33,76 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log('AdminDashboard: Starting data fetch');
     fetchDashboardData();
   }, []);
 
   const fetchDashboardData = async () => {
     try {
-      console.log('Fetching admin dashboard data...');
+      console.log('AdminDashboard: Fetching admin dashboard data...');
       
-      // Fetch total users
+      // Fetch total users with detailed logging
+      console.log('AdminDashboard: Fetching users count...');
       const { count: usersCount, error: usersError } = await supabase
         .from('users')
         .select('*', { count: 'exact', head: true });
 
       if (usersError) {
-        console.error('Error fetching users count:', usersError);
+        console.error('AdminDashboard: Error fetching users count:', usersError);
+      } else {
+        console.log('AdminDashboard: Users count:', usersCount);
       }
 
-      // Fetch total courses
+      // Fetch total courses with detailed logging
+      console.log('AdminDashboard: Fetching courses count...');
       const { count: coursesCount, error: coursesError } = await supabase
         .from('courses')
         .select('*', { count: 'exact', head: true });
 
       if (coursesError) {
-        console.error('Error fetching courses count:', coursesError);
+        console.error('AdminDashboard: Error fetching courses count:', coursesError);
+      } else {
+        console.log('AdminDashboard: Courses count:', coursesCount);
       }
 
-      // Fetch total enrollments
+      // Fetch total enrollments with detailed logging
+      console.log('AdminDashboard: Fetching enrollments count...');
       const { count: enrollmentsCount, error: enrollmentsError } = await supabase
         .from('enrollments')
         .select('*', { count: 'exact', head: true });
 
       if (enrollmentsError) {
-        console.error('Error fetching enrollments count:', enrollmentsError);
+        console.error('AdminDashboard: Error fetching enrollments count:', enrollmentsError);
+      } else {
+        console.log('AdminDashboard: Enrollments count:', enrollmentsCount);
       }
 
       // Calculate completion rate (enrollments with 100% progress)
+      console.log('AdminDashboard: Fetching completed enrollments...');
       const { count: completedCount, error: completedError } = await supabase
         .from('enrollments')
         .select('*', { count: 'exact', head: true })
         .gte('progress', 100);
 
       if (completedError) {
-        console.error('Error fetching completed enrollments:', completedError);
+        console.error('AdminDashboard: Error fetching completed enrollments:', completedError);
+      } else {
+        console.log('AdminDashboard: Completed enrollments count:', completedCount);
       }
 
-      // Fetch most enrolled course
+      // Fetch most enrolled course with detailed logging
+      console.log('AdminDashboard: Fetching most enrolled course...');
       const { data: mostEnrolled, error: mostEnrolledError } = await supabase
         .from('courses')
         .select('*')
         .order('enrollment_count', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
-      if (mostEnrolledError && mostEnrolledError.code !== 'PGRST116') {
-        console.error('Error fetching most enrolled course:', mostEnrolledError);
-      } else if (mostEnrolled) {
+      if (mostEnrolledError) {
+        console.error('AdminDashboard: Error fetching most enrolled course:', mostEnrolledError);
+      } else {
+        console.log('AdminDashboard: Most enrolled course:', mostEnrolled);
         setMostEnrolledCourse(mostEnrolled);
       }
 
@@ -96,18 +111,21 @@ const AdminDashboard = () => {
         ? Math.round((completedCount / enrollmentsCount) * 100)
         : 0;
 
-      setStats({
+      const finalStats = {
         totalUsers: usersCount || 0,
         totalCourses: coursesCount || 0,
         totalEnrollments: enrollmentsCount || 0,
         completionRate
-      });
+      };
 
-      console.log('Dashboard data fetched successfully');
+      console.log('AdminDashboard: Final stats:', finalStats);
+      setStats(finalStats);
+
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+      console.error('AdminDashboard: Error fetching dashboard data:', error);
     } finally {
       setLoading(false);
+      console.log('AdminDashboard: Data fetch completed');
     }
   };
 

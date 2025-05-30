@@ -27,12 +27,13 @@ const AdminUserAnalytics = () => {
   });
 
   useEffect(() => {
+    console.log('UserAnalytics: Starting data fetch');
     fetchUserAnalytics();
   }, []);
 
   const fetchUserAnalytics = async () => {
     try {
-      console.log('Fetching user analytics data...');
+      console.log('UserAnalytics: Fetching user analytics data...');
       
       // Fetch all users with their enrollment and progress data
       const { data: usersData, error: usersError } = await supabase
@@ -50,14 +51,17 @@ const AdminUserAnalytics = () => {
               title
             )
           )
-        `);
+        `)
+        .order('created_at', { ascending: false });
 
       if (usersError) {
-        console.error('Error fetching users:', usersError);
+        console.error('UserAnalytics: Error fetching users:', usersError);
         return;
       }
 
       if (usersData) {
+        console.log('UserAnalytics: Raw users data fetched:', usersData.length, 'users');
+        
         // Process user data to calculate statistics
         const processedUsers: UserData[] = usersData.map(user => {
           const enrollments = user.enrollments || [];
@@ -78,6 +82,7 @@ const AdminUserAnalytics = () => {
           };
         });
 
+        console.log('UserAnalytics: Processed users data:', processedUsers);
         setUsers(processedUsers);
 
         // Calculate overall statistics
@@ -89,18 +94,20 @@ const AdminUserAnalytics = () => {
           ? Math.round(processedUsers.reduce((sum, user) => sum + user.totalProgress, 0) / totalUsers)
           : 0;
 
-        setStats({
+        const finalStats = {
           totalUsers,
           avgEnrollments,
           avgProgress
-        });
+        };
 
-        console.log('User analytics fetched successfully:', totalUsers, 'users');
+        console.log('UserAnalytics: Final stats:', finalStats);
+        setStats(finalStats);
       }
     } catch (error) {
-      console.error('Error fetching user analytics:', error);
+      console.error('UserAnalytics: Error fetching user analytics:', error);
     } finally {
       setLoading(false);
+      console.log('UserAnalytics: Data fetch completed');
     }
   };
 

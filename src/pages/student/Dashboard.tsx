@@ -38,50 +38,87 @@ const StudentDashboard = () => {
 
   useEffect(() => {
     if (user) {
+      console.log('Dashboard: Fetching data for user:', user.id);
       fetchDashboardData();
+    } else {
+      console.log('Dashboard: No user found');
+      setLoading(false);
     }
   }, [user]);
 
   const fetchDashboardData = async () => {
-    if (!user) return;
+    if (!user) {
+      console.log('Dashboard: No user available for data fetch');
+      setLoading(false);
+      return;
+    }
 
     try {
-      console.log('Fetching dashboard data for user:', user.id);
+      console.log('Dashboard: Starting data fetch for user:', user.id);
       
-      // Fetch enrolled courses
+      // Fetch enrolled courses with detailed logging
+      console.log('Dashboard: Fetching enrollments...');
       const { data: enrollments, error: enrollmentError } = await supabase
         .from('enrollments')
         .select(`
           course_id,
           progress,
           enrolled_at,
-          courses (*)
+          courses (
+            id,
+            title,
+            description,
+            instructor,
+            difficulty,
+            price,
+            duration,
+            thumbnail,
+            category,
+            enrollment_count
+          )
         `)
         .eq('user_id', user.id);
 
       if (enrollmentError) {
-        console.error('Error fetching enrollments:', enrollmentError);
-      } else if (enrollments) {
-        setEnrolledCourses(enrollments);
-        setCompletedCount(enrollments.filter(e => e.progress >= 100).length);
+        console.error('Dashboard: Error fetching enrollments:', enrollmentError);
+      } else {
+        console.log('Dashboard: Enrollments fetched successfully:', enrollments);
+        if (enrollments && enrollments.length > 0) {
+          setEnrolledCourses(enrollments);
+          const completed = enrollments.filter(e => e.progress >= 100).length;
+          setCompletedCount(completed);
+          console.log('Dashboard: Found', enrollments.length, 'enrollments,', completed, 'completed');
+        } else {
+          console.log('Dashboard: No enrollments found for user');
+          setEnrolledCourses([]);
+          setCompletedCount(0);
+        }
       }
 
-      // Fetch wishlist count
+      // Fetch wishlist count with detailed logging
+      console.log('Dashboard: Fetching wishlist...');
       const { data: wishlist, error: wishlistError } = await supabase
         .from('wishlist')
         .select('id')
         .eq('user_id', user.id);
 
       if (wishlistError) {
-        console.error('Error fetching wishlist:', wishlistError);
-      } else if (wishlist) {
-        setWishlistCount(wishlist.length);
+        console.error('Dashboard: Error fetching wishlist:', wishlistError);
+      } else {
+        console.log('Dashboard: Wishlist fetched successfully:', wishlist);
+        if (wishlist) {
+          setWishlistCount(wishlist.length);
+          console.log('Dashboard: Found', wishlist.length, 'wishlist items');
+        } else {
+          setWishlistCount(0);
+        }
       }
 
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+      console.error('Dashboard: Error fetching dashboard data:', error);
     } finally {
       setLoading(false);
+      console.log('Dashboard: Data fetch completed');
     }
   };
 
@@ -99,13 +136,26 @@ const StudentDashboard = () => {
     );
   }
 
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <p className="text-gray-600">Please log in to view your dashboard.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Welcome back, {user?.name}!</h1>
+          <h1 className="text-4xl font-bold mb-2">Welcome back, {user.name}!</h1>
           <p className="text-gray-600">Continue your learning journey</p>
         </div>
 
@@ -187,9 +237,9 @@ const StudentDashboard = () => {
                       <div className="mb-4">
                         <div className="flex justify-between text-sm mb-2">
                           <span>Progress</span>
-                          <span>{enrollment.progress}%</span>
+                          <span>{enrollment.progress || 0}%</span>
                         </div>
-                        <Progress value={enrollment.progress} className="w-full" />
+                        <Progress value={enrollment.progress || 0} className="w-full" />
                       </div>
                       <Link to={`/student/learn/${course.id}`}>
                         <Button className="w-full">Continue Learning</Button>

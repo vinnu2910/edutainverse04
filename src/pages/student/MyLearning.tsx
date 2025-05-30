@@ -36,38 +36,62 @@ const StudentMyLearning = () => {
 
   useEffect(() => {
     if (user) {
+      console.log('MyLearning: Fetching courses for user:', user.id);
       fetchEnrolledCourses();
+    } else {
+      console.log('MyLearning: No user found');
+      setLoading(false);
     }
   }, [user]);
 
   const fetchEnrolledCourses = async () => {
-    if (!user) return;
+    if (!user) {
+      console.log('MyLearning: No user available for course fetch');
+      setLoading(false);
+      return;
+    }
 
     try {
-      console.log('Fetching enrolled courses for user:', user.id);
+      console.log('MyLearning: Starting course fetch for user:', user.id);
       const { data, error } = await supabase
         .from('enrollments')
         .select(`
           course_id,
           progress,
           enrolled_at,
-          courses (*)
+          courses (
+            id,
+            title,
+            description,
+            instructor,
+            difficulty,
+            price,
+            duration,
+            thumbnail,
+            category,
+            enrollment_count
+          )
         `)
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .order('enrolled_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching enrolled courses:', error);
+        console.error('MyLearning: Error fetching enrolled courses:', error);
         return;
       }
 
       if (data) {
+        console.log('MyLearning: Enrolled courses fetched successfully:', data.length, 'courses');
         setEnrolledCourses(data);
-        console.log('Enrolled courses fetched successfully:', data.length);
+      } else {
+        console.log('MyLearning: No enrolled courses found');
+        setEnrolledCourses([]);
       }
     } catch (error) {
-      console.error('Error fetching enrolled courses:', error);
+      console.error('MyLearning: Error fetching enrolled courses:', error);
     } finally {
       setLoading(false);
+      console.log('MyLearning: Course fetch completed');
     }
   };
 
@@ -79,6 +103,19 @@ const StudentMyLearning = () => {
           <div className="text-center">
             <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
             <p className="mt-4 text-gray-600">Loading your courses...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <p className="text-gray-600">Please log in to view your courses.</p>
           </div>
         </div>
       </div>
