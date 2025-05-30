@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,10 +17,17 @@ interface UserData {
   joinDate: string;
 }
 
-const AdminUserAnalytics = () => {
+interface UserStats {
+  totalUsers: number;
+  avgEnrollments: number;
+  avgProgress: number;
+}
+
+const AdminUserAnalytics: React.FC = () => {
   const [users, setUsers] = useState<UserData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<UserStats>({
     totalUsers: 0,
     avgEnrollments: 0,
     avgProgress: 0
@@ -30,9 +38,10 @@ const AdminUserAnalytics = () => {
     fetchUserAnalytics();
   }, []);
 
-  const fetchUserAnalytics = async () => {
+  const fetchUserAnalytics = async (): Promise<void> => {
     try {
       console.log('UserAnalytics: Fetching user analytics data...');
+      setError(null);
       
       // Fetch only student users (exclude admin users)
       const { data: usersData, error: usersError } = await supabase
@@ -43,6 +52,7 @@ const AdminUserAnalytics = () => {
 
       if (usersError) {
         console.error('UserAnalytics: Error fetching users:', usersError);
+        setError('Failed to fetch user data');
         return;
       }
 
@@ -56,13 +66,15 @@ const AdminUserAnalytics = () => {
 
         if (enrollmentsError) {
           console.error('UserAnalytics: Error fetching enrollments:', enrollmentsError);
+          setError('Failed to fetch enrollment data');
+          return;
         }
 
         // Process user data to calculate statistics
         const processedUsers: UserData[] = usersData.map(user => {
           const userEnrollments = enrollmentsData?.filter(e => e.user_id === user.id) || [];
           const enrolledCourses = userEnrollments.length;
-          const completedCourses = userEnrollments.filter(e => e.progress >= 100).length;
+          const completedCourses = userEnrollments.filter(e => (e.progress || 0) >= 100).length;
           const totalProgress = userEnrollments.length > 0 
             ? Math.round(userEnrollments.reduce((sum, e) => sum + (e.progress || 0), 0) / userEnrollments.length)
             : 0;
@@ -74,7 +86,7 @@ const AdminUserAnalytics = () => {
             enrolledCourses,
             completedCourses,
             totalProgress,
-            joinDate: user.created_at
+            joinDate: user.created_at || new Date().toISOString()
           };
         });
 
@@ -90,7 +102,7 @@ const AdminUserAnalytics = () => {
           ? Math.round(processedUsers.reduce((sum, user) => sum + user.totalProgress, 0) / totalUsers)
           : 0;
 
-        const finalStats = {
+        const finalStats: UserStats = {
           totalUsers,
           avgEnrollments,
           avgProgress
@@ -101,6 +113,7 @@ const AdminUserAnalytics = () => {
       }
     } catch (error) {
       console.error('UserAnalytics: Error fetching user analytics:', error);
+      setError('An unexpected error occurred while fetching data');
     } finally {
       setLoading(false);
       console.log('UserAnalytics: Data fetch completed');
@@ -115,6 +128,26 @@ const AdminUserAnalytics = () => {
           <div className="text-center">
             <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
             <p className="mt-4 text-gray-600">Loading user analytics...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <div className="text-red-600 text-lg mb-4">Error</div>
+            <p className="text-gray-600">{error}</p>
+            <button 
+              onClick={fetchUserAnalytics}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Retry
+            </button>
           </div>
         </div>
       </div>
@@ -185,13 +218,15 @@ const AdminUserAnalytics = () => {
                   <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex items-center space-x-4">
                       <Avatar>
-                        <AvatarImage src="/placeholder.svg" />
+                        <AvatarImage src="/placeholder.svg" alt={user.name} />
                         <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
                       </Avatar>
                       <div>
                         <h3 className="font-medium">{user.name}</h3>
                         <p className="text-sm text-gray-600">{user.email}</p>
-                        <p className="text-xs text-gray-500">Joined: {new Date(user.joinDate).toLocaleDateString()}</p>
+                        <p className="text-xs text-gray-500">
+                          Joined: {new Date(user.joinDate).toLocaleDateString()}
+                        </p>
                       </div>
                     </div>
                     

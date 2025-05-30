@@ -8,7 +8,7 @@ interface LayoutProps {
   isPublic?: boolean;
 }
 
-const Layout = ({ children, isPublic = false }: LayoutProps) => {
+const Layout: React.FC<LayoutProps> = ({ children, isPublic = false }) => {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 to-blue-50">
       <Navbar isPublic={isPublic} />
