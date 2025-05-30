@@ -119,7 +119,7 @@ const AdminCourseEditor = () => {
         }
       }
 
-      // Combine modules with their videos
+      // Combine modules with their videos - map youtube_url to youtube_id for frontend
       const modulesWithVideos = modulesData?.map(module => ({
         id: module.id,
         title: module.title,
@@ -128,7 +128,7 @@ const AdminCourseEditor = () => {
         videos: videosData.filter(video => video.module_id === module.id).map(video => ({
           id: video.id,
           title: video.title,
-          youtube_id: video.youtube_id,
+          youtube_id: video.youtube_url, // Map youtube_url from DB to youtube_id for frontend
           duration: video.duration,
           order_index: video.order_index
         }))
@@ -336,26 +336,26 @@ const AdminCourseEditor = () => {
             .eq('id', module.id);
         }
 
-        // Save videos
+        // Save videos - Fix the field mapping issue
         for (const video of module.videos) {
           if (video.id.startsWith('temp-')) {
-            // Create new video
+            // Create new video - map youtube_id to youtube_url for database
             await supabase
               .from('module_videos')
               .insert([{
                 module_id: moduleId,
                 title: video.title,
-                youtube_id: video.youtube_id,
+                youtube_url: video.youtube_id, // Map youtube_id from frontend to youtube_url for DB
                 duration: video.duration,
                 order_index: video.order_index
               }]);
           } else {
-            // Update existing video
+            // Update existing video - map youtube_id to youtube_url for database
             await supabase
               .from('module_videos')
               .update({
                 title: video.title,
-                youtube_id: video.youtube_id,
+                youtube_url: video.youtube_id, // Map youtube_id from frontend to youtube_url for DB
                 duration: video.duration,
                 order_index: video.order_index
               })
