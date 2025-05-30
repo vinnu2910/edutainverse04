@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Search, Users, Clock, Heart, HeartOff } from 'lucide-react';
+import { Search, Users, Clock, Heart, HeartOff, Filter, Star, BookOpen } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -231,12 +231,12 @@ const StudentCourses = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/50 to-purple-50/30">
         <Navbar />
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading courses...</p>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center space-y-4">
+            <div className="w-16 h-16 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
+            <p className="text-slate-600 font-medium">Loading amazing courses...</p>
           </div>
         </div>
       </div>
@@ -244,115 +244,162 @@ const StudentCourses = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/50 to-purple-50/30">
       <Navbar />
       
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <h1 className="text-4xl font-bold mb-8">Browse Courses</h1>
+      <div className="relative">
+        <div className="absolute inset-0 opacity-30" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23f1f5f9' fill-opacity='0.4'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
+        }}></div>
         
-        {/* Filters */}
-        <div className="flex gap-4 mb-8">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Search courses..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+        <div className="relative max-w-7xl mx-auto px-4 py-8">
+          {/* Header */}
+          <div className="text-center mb-12 space-y-4">
+            <h1 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-slate-900 via-blue-800 to-purple-800 bg-clip-text text-transparent">
+              Discover Courses
+            </h1>
+            <p className="text-xl text-slate-600 max-w-2xl mx-auto">
+              Explore our comprehensive collection of expert-led courses
+            </p>
           </div>
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Select difficulty" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="All">All Difficulties</SelectItem>
-              <SelectItem value="Beginner">Beginner</SelectItem>
-              <SelectItem value="Average">Average</SelectItem>
-              <SelectItem value="Advanced">Advanced</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+          
+          {/* Filters */}
+          <Card className="mb-8 border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+            <CardContent className="p-6">
+              <div className="flex flex-col lg:flex-row gap-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
+                  <Input
+                    placeholder="Search courses, instructors, or topics..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 h-12 border-slate-200 focus:border-blue-500 focus:ring-blue-500/20"
+                  />
+                </div>
+                <div className="flex gap-4">
+                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <SelectTrigger className="w-48 h-12 border-slate-200 focus:border-blue-500">
+                      <Filter className="w-4 h-4 mr-2" />
+                      <SelectValue placeholder="Select difficulty" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="All">All Difficulties</SelectItem>
+                      <SelectItem value="Beginner">Beginner</SelectItem>
+                      <SelectItem value="Average">Average</SelectItem>
+                      <SelectItem value="Advanced">Advanced</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-        {/* Course Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredCourses.map((course) => (
-            <Card key={course.id} className="hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
-              <CardHeader>
-                <img 
-                  src={course.thumbnail} 
-                  alt={course.title} 
-                  className="w-full h-48 object-cover rounded-lg mb-4"
-                />
-                <div className="flex justify-between items-start mb-2">
-                  <CardTitle className="text-lg">{course.title}</CardTitle>
+          {/* Course Grid */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {filteredCourses.map((course) => (
+              <Card key={course.id} className="group border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-2 overflow-hidden bg-white/90 backdrop-blur-sm">
+                <div className="relative overflow-hidden">
+                  <img 
+                    src={course.thumbnail} 
+                    alt={course.title}
+                    className="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  <div className="absolute top-4 left-4">
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-sm ${
+                      course.difficulty === 'Beginner' ? 'bg-green-100/90 text-green-700' :
+                      course.difficulty === 'Average' ? 'bg-yellow-100/90 text-yellow-700' :
+                      'bg-red-100/90 text-red-700'
+                    }`}>
+                      {course.difficulty}
+                    </span>
+                  </div>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => toggleWishlist(course.id)}
-                    className="p-1"
+                    className="absolute top-4 right-4 p-2 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white hover:scale-110 transition-all duration-300"
                   >
                     {wishlist.includes(course.id) ? (
-                      <Heart className="w-5 h-5 text-red-500 fill-current" />
+                      <Heart className="w-4 h-4 text-red-500 fill-current" />
                     ) : (
-                      <HeartOff className="w-5 h-5 text-gray-400" />
+                      <HeartOff className="w-4 h-4 text-slate-400" />
                     )}
                   </Button>
                 </div>
-                <span className={`px-2 py-1 rounded text-xs font-medium w-fit ${
-                  course.difficulty === 'Beginner' ? 'bg-green-100 text-green-800' :
-                  course.difficulty === 'Average' ? 'bg-yellow-100 text-yellow-800' :
-                  'bg-red-100 text-red-800'
-                }`}>
-                  {course.difficulty}
-                </span>
-                <CardDescription className="text-sm mt-2">{course.description}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between text-sm text-gray-600 mb-4">
-                  <div className="flex items-center">
-                    <Users className="w-4 h-4 mr-1" />
-                    {course.actual_enrollment_count !== undefined 
-                      ? course.actual_enrollment_count 
-                      : course.enrollment_count} students
+                <CardContent className="p-6">
+                  <div className="space-y-4">
+                    <h3 className="text-xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-2">
+                      {course.title}
+                    </h3>
+                    <p className="text-slate-600 text-sm line-clamp-3 leading-relaxed">
+                      {course.description}
+                    </p>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-slate-500 font-medium">By {course.instructor}</span>
+                      <div className="flex items-center space-x-1">
+                        <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                        <span className="text-slate-600 font-medium">4.8</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-sm text-slate-500">
+                      <div className="flex items-center space-x-1">
+                        <Users className="w-4 h-4" />
+                        <span>{course.actual_enrollment_count !== undefined 
+                          ? course.actual_enrollment_count 
+                          : course.enrollment_count} students</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <Clock className="w-4 h-4" />
+                        <span>{course.duration}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between pt-2">
+                      <div className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                        ₹{course.price}
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center">
-                    <Clock className="w-4 h-4 mr-1" />
-                    {course.duration}
-                  </div>
-                </div>
-                <p className="text-sm text-gray-600 mb-4">Instructor: {course.instructor}</p>
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-2xl font-bold text-green-600">
-                    ₹{course.price}
-                  </span>
-                </div>
-                <div className="flex gap-2">
-                  {enrolledCourses.includes(course.id) ? (
-                    <Link to={`/student/learn/${course.id}`} className="flex-1">
-                      <Button className="w-full">Continue Learning</Button>
-                    </Link>
-                  ) : (
-                    <>
-                      <Link to={`/student/courses/${course.id}`} className="flex-1">
-                        <Button variant="outline" className="w-full">View Details</Button>
+                  <div className="flex gap-2 mt-6">
+                    {enrolledCourses.includes(course.id) ? (
+                      <Link to={`/student/learn/${course.id}`} className="flex-1">
+                        <Button className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 shadow-lg hover:shadow-xl transition-all duration-300">
+                          <BookOpen className="w-4 h-4 mr-2" />
+                          Continue Learning
+                        </Button>
                       </Link>
-                      <Button onClick={() => enrollInCourse(course.id)} className="flex-1">
-                        Enroll Now
-                      </Button>
-                    </>
-                  )}
+                    ) : (
+                      <>
+                        <Link to={`/student/courses/${course.id}`} className="flex-1">
+                          <Button variant="outline" className="w-full border-slate-300 hover:border-blue-500 hover:bg-blue-50 transition-all duration-300">
+                            View Details
+                          </Button>
+                        </Link>
+                        <Button onClick={() => enrollInCourse(course.id)} className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300">
+                          Enroll Now
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {filteredCourses.length === 0 && (
+            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+              <CardContent className="text-center py-16">
+                <div className="w-20 h-20 bg-gradient-to-br from-slate-100 to-slate-200 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Search className="w-10 h-10 text-slate-400" />
                 </div>
+                <h3 className="text-2xl font-bold text-slate-900 mb-3">No Courses Found</h3>
+                <p className="text-slate-600 max-w-md mx-auto">
+                  Try adjusting your search criteria or browse all available courses
+                </p>
               </CardContent>
             </Card>
-          ))}
+          )}
         </div>
-
-        {filteredCourses.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-500 text-lg">No courses found matching your criteria.</p>
-          </div>
-        )}
       </div>
     </div>
   );
