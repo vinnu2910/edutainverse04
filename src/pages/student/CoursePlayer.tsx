@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
@@ -75,18 +74,83 @@ const StudentCoursePlayer = () => {
 
       setCourse(courseData);
 
-      // Fetch modules with videos
+      // Fetch modules with videos using the correct relationship
       const { data: modulesData, error: modulesError } = await supabase
         .from('course_modules')
         .select(`
           *,
-          module_videos (*)
+          module_videos!fk_module_videos_module_id (*)
         `)
         .eq('course_id', courseId)
         .order('order_index');
 
       if (modulesError) {
         console.error('Error fetching modules:', modulesError);
+        // If the specific relationship doesn't work, try the alternative
+        const { data: altModulesData, error: altModulesError } = await supabase
+          .from('course_modules')
+          .select(`
+            *,
+            module_videos!module_videos_module_id_fkey (*)
+          `)
+          .eq('course_id', courseId)
+          .order('order_index');
+
+        if (altModulesError) {
+          console.error('Error with alternative modules query:', altModulesError);
+          // If both fail, try without the relationship
+          const { data: simpleModulesData, error: simpleModulesError } = await supabase
+            .from('course_modules')
+            .select('*')
+            .eq('course_id', courseId)
+            .order('order_index');
+
+          if (simpleModulesError) {
+            console.error('Error fetching simple modules:', simpleModulesError);
+            return;
+          }
+
+          if (simpleModulesData) {
+            // Fetch videos separately for each module
+            const modulesWithVideos = await Promise.all(
+              simpleModulesData.map(async (module) => {
+                const { data: videos, error: videosError } = await supabase
+                  .from('module_videos')
+                  .select('*')
+                  .eq('module_id', module.id)
+                  .order('order_index');
+
+                if (videosError) {
+                  console.error('Error fetching videos for module:', module.id, videosError);
+                  return { ...module, module_videos: [] };
+                }
+
+                return { ...module, module_videos: videos || [] };
+              })
+            );
+
+            setModules(modulesWithVideos);
+            
+            // Set first video as current
+            if (modulesWithVideos.length > 0 && modulesWithVideos[0].module_videos?.length > 0) {
+              setCurrentVideo(modulesWithVideos[0].module_videos[0]);
+            }
+          }
+          return;
+        }
+
+        if (altModulesData) {
+          const sortedModules = altModulesData.map(module => ({
+            ...module,
+            module_videos: module.module_videos?.sort((a, b) => a.order_index - b.order_index) || []
+          }));
+          
+          setModules(sortedModules);
+          
+          if (sortedModules.length > 0 && sortedModules[0].module_videos?.length > 0) {
+            setCurrentVideo(sortedModules[0].module_videos[0]);
+          }
+        }
         return;
       }
 
@@ -318,37 +382,43 @@ const StudentCoursePlayer = () => {
                 <CardTitle>Course Content</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {modules.map((module) => (
-                  <div key={module.id} className="space-y-2">
-                    <h3 className="font-medium text-sm border-b pb-2">{module.title}</h3>
-                    {module.module_videos?.map((video) => {
-                      const isCompleted = completedVideos.includes(video.id);
-                      const isCurrent = currentVideo?.id === video.id;
-                      
-                      return (
-                        <div
-                          key={video.id}
-                          className={`flex items-center space-x-3 p-2 rounded cursor-pointer transition-colors ${
-                            isCurrent ? 'bg-blue-100 border border-blue-300' : 'hover:bg-gray-100'
-                          }`}
-                          onClick={() => setCurrentVideo(video)}
-                        >
-                          {isCompleted ? (
-                            <CheckCircle className="w-4 h-4 text-green-500" />
-                          ) : (
-                            <Play className="w-4 h-4 text-gray-400" />
-                          )}
-                          <div className="flex-1">
-                            <p className={`text-sm ${isCurrent ? 'font-medium text-blue-700' : ''}`}>
-                              {video.title}
-                            </p>
-                            <p className="text-xs text-gray-500">{video.duration}</p>
+                {modules.length > 0 ? (
+                  modules.map((module) => (
+                    <div key={module.id} className="space-y-2">
+                      <h3 className="font-medium text-sm border-b pb-2">{module.title}</h3>
+                      {module.module_videos?.map((video) => {
+                        const isCompleted = completedVideos.includes(video.id);
+                        const isCurrent = currentVideo?.id === video.id;
+                        
+                        return (
+                          <div
+                            key={video.id}
+                            className={`flex items-center space-x-3 p-2 rounded cursor-pointer transition-colors ${
+                              isCurrent ? 'bg-blue-100 border border-blue-300' : 'hover:bg-gray-100'
+                            }`}
+                            onClick={() => setCurrentVideo(video)}
+                          >
+                            {isCompleted ? (
+                              <CheckCircle className="w-4 h-4 text-green-500" />
+                            ) : (
+                              <Play className="w-4 h-4 text-gray-400" />
+                            )}
+                            <div className="flex-1">
+                              <p className={`text-sm ${isCurrent ? 'font-medium text-blue-700' : ''}`}>
+                                {video.title}
+                              </p>
+                              <p className="text-xs text-gray-500">{video.duration}</p>
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500">No course content available yet.</p>
                   </div>
-                ))}
+                )}
               </CardContent>
             </Card>
           </div>

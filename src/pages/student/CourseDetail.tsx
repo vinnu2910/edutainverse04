@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
@@ -85,20 +84,67 @@ const StudentCourseDetail = () => {
         console.log('CourseDetail: Course data fetched:', courseData);
         setCourse(courseData);
 
-        // Try to fetch modules - this might not exist in current schema
+        // Try to fetch modules with improved error handling
         try {
           const { data: modulesData, error: modulesError } = await supabase
             .from('course_modules')
             .select(`
               *,
-              module_videos (*)
+              module_videos!fk_module_videos_module_id (*)
             `)
             .eq('course_id', id)
             .order('order_index');
 
           if (modulesError) {
-            console.log('CourseDetail: Modules table might not exist:', modulesError);
-            setModules([]);
+            console.log('CourseDetail: Trying alternative relationship:', modulesError);
+            // Try alternative relationship
+            const { data: altModulesData, error: altModulesError } = await supabase
+              .from('course_modules')
+              .select(`
+                *,
+                module_videos!module_videos_module_id_fkey (*)
+              `)
+              .eq('course_id', id)
+              .order('order_index');
+
+            if (altModulesError) {
+              console.log('CourseDetail: Trying simple fetch:', altModulesError);
+              // Fetch modules and videos separately
+              const { data: simpleModulesData, error: simpleModulesError } = await supabase
+                .from('course_modules')
+                .select('*')
+                .eq('course_id', id)
+                .order('order_index');
+
+              if (simpleModulesError) {
+                console.log('CourseDetail: All module queries failed:', simpleModulesError);
+                setModules([]);
+              } else if (simpleModulesData) {
+                // Fetch videos separately for each module
+                const modulesWithVideos = await Promise.all(
+                  simpleModulesData.map(async (module) => {
+                    const { data: videos, error: videosError } = await supabase
+                      .from('module_videos')
+                      .select('*')
+                      .eq('module_id', module.id)
+                      .order('order_index');
+
+                    if (videosError) {
+                      console.error('Error fetching videos for module:', module.id, videosError);
+                      return { ...module, module_videos: [] };
+                    }
+
+                    return { ...module, module_videos: videos || [] };
+                  })
+                );
+
+                console.log('CourseDetail: Modules with videos fetched:', modulesWithVideos);
+                setModules(modulesWithVideos);
+              }
+            } else if (altModulesData) {
+              console.log('CourseDetail: Alternative modules fetched:', altModulesData);
+              setModules(altModulesData);
+            }
           } else if (modulesData) {
             console.log('CourseDetail: Modules fetched:', modulesData);
             setModules(modulesData);
