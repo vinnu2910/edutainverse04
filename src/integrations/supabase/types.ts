@@ -42,6 +42,13 @@ export type Database = {
             referencedRelation: "courses"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_course_modules_course_id"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
         ]
       }
       courses: {
@@ -126,6 +133,20 @@ export type Database = {
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_enrollments_course_id"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_enrollments_user_id"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
         ]
       }
       module_videos: {
@@ -158,6 +179,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_module_videos_module_id"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "course_modules"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "module_videos_module_id_fkey"
             columns: ["module_id"]
             isOneToOne: false
@@ -189,6 +217,20 @@ export type Database = {
           video_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_user_progress_user_id"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_user_progress_video_id"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "module_videos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "user_progress_user_id_fkey"
             columns: ["user_id"]
@@ -255,6 +297,20 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_wishlist_course_id"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_wishlist_user_id"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "wishlist_course_id_fkey"
             columns: ["course_id"]

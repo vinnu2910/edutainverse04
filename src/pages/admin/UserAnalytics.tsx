@@ -1,43 +1,122 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
-import { mockCourses } from '../../data/mockData';
 import { Users, BookOpen, TrendingUp } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+
+interface UserData {
+  id: string;
+  name: string;
+  email: string;
+  enrolledCourses: number;
+  completedCourses: number;
+  totalProgress: number;
+  joinDate: string;
+}
 
 const AdminUserAnalytics = () => {
-  // Mock user data
-  const users = [
-    {
-      id: '1',
-      name: 'Danush',
-      email: 'danush@example.com',
-      enrolledCourses: 3,
-      completedCourses: 1,
-      totalProgress: 65,
-      joinDate: '2024-01-15'
-    },
-    {
-      id: '2',
-      name: 'Rajesh',
-      email: 'Rajesh@example.com',
-      enrolledCourses: 2,
-      completedCourses: 2,
-      totalProgress: 100,
-      joinDate: '2024-02-20'
-    },
-    {
-      id: '3',
-      name: 'mohan',
-      email: 'mohan@example.com',
-      enrolledCourses: 1,
-      completedCourses: 0,
-      totalProgress: 25,
-      joinDate: '2024-03-10'
+  const [users, setUsers] = useState<UserData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    avgEnrollments: 0,
+    avgProgress: 0
+  });
+
+  useEffect(() => {
+    fetchUserAnalytics();
+  }, []);
+
+  const fetchUserAnalytics = async () => {
+    try {
+      console.log('Fetching user analytics data...');
+      
+      // Fetch all users with their enrollment and progress data
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select(`
+          id,
+          name,
+          email,
+          created_at,
+          enrollments (
+            id,
+            progress,
+            courses (
+              id,
+              title
+            )
+          )
+        `);
+
+      if (usersError) {
+        console.error('Error fetching users:', usersError);
+        return;
+      }
+
+      if (usersData) {
+        // Process user data to calculate statistics
+        const processedUsers: UserData[] = usersData.map(user => {
+          const enrollments = user.enrollments || [];
+          const enrolledCourses = enrollments.length;
+          const completedCourses = enrollments.filter(e => e.progress >= 100).length;
+          const totalProgress = enrollments.length > 0 
+            ? Math.round(enrollments.reduce((sum, e) => sum + (e.progress || 0), 0) / enrollments.length)
+            : 0;
+
+          return {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            enrolledCourses,
+            completedCourses,
+            totalProgress,
+            joinDate: user.created_at
+          };
+        });
+
+        setUsers(processedUsers);
+
+        // Calculate overall statistics
+        const totalUsers = processedUsers.length;
+        const avgEnrollments = totalUsers > 0 
+          ? Math.round(processedUsers.reduce((sum, user) => sum + user.enrolledCourses, 0) / totalUsers * 10) / 10
+          : 0;
+        const avgProgress = totalUsers > 0
+          ? Math.round(processedUsers.reduce((sum, user) => sum + user.totalProgress, 0) / totalUsers)
+          : 0;
+
+        setStats({
+          totalUsers,
+          avgEnrollments,
+          avgProgress
+        });
+
+        console.log('User analytics fetched successfully:', totalUsers, 'users');
+      }
+    } catch (error) {
+      console.error('Error fetching user analytics:', error);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading user analytics...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -57,7 +136,7 @@ const AdminUserAnalytics = () => {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{users.length}</div>
+              <div className="text-2xl font-bold">{stats.totalUsers}</div>
               <p className="text-xs text-muted-foreground">Active learners</p>
             </CardContent>
           </Card>
@@ -68,7 +147,7 @@ const AdminUserAnalytics = () => {
               <BookOpen className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">2.0</div>
+              <div className="text-2xl font-bold">{stats.avgEnrollments}</div>
               <p className="text-xs text-muted-foreground">Courses per student</p>
             </CardContent>
           </Card>
@@ -79,7 +158,7 @@ const AdminUserAnalytics = () => {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">63%</div>
+              <div className="text-2xl font-bold">{stats.avgProgress}%</div>
               <p className="text-xs text-muted-foreground">Overall completion</p>
             </CardContent>
           </Card>
@@ -92,41 +171,48 @@ const AdminUserAnalytics = () => {
             <CardDescription>Individual student progress and enrollments</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-6">
-              {users.map((user) => (
-                <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center space-x-4">
-                    <Avatar>
-                      <AvatarImage src="/placeholder.svg" />
-                      <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <h3 className="font-medium">{user.name}</h3>
-                      <p className="text-sm text-gray-600">{user.email}</p>
-                      <p className="text-xs text-gray-500">Joined: {new Date(user.joinDate).toLocaleDateString()}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-8">
-                    <div className="text-center">
-                      <p className="text-sm font-medium">{user.enrolledCourses}</p>
-                      <p className="text-xs text-gray-600">Enrolled</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm font-medium">{user.completedCourses}</p>
-                      <p className="text-xs text-gray-600">Completed</p>
-                    </div>
-                    <div className="w-32">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-xs text-gray-600">Progress</span>
-                        <span className="text-xs text-gray-600">{user.totalProgress}%</span>
+            {users.length === 0 ? (
+              <div className="text-center py-8">
+                <Users className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+                <p className="text-gray-500">No users found.</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {users.map((user) => (
+                  <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center space-x-4">
+                      <Avatar>
+                        <AvatarImage src="/placeholder.svg" />
+                        <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <h3 className="font-medium">{user.name}</h3>
+                        <p className="text-sm text-gray-600">{user.email}</p>
+                        <p className="text-xs text-gray-500">Joined: {new Date(user.joinDate).toLocaleDateString()}</p>
                       </div>
-                      <Progress value={user.totalProgress} className="w-full" />
+                    </div>
+                    
+                    <div className="flex items-center space-x-8">
+                      <div className="text-center">
+                        <p className="text-sm font-medium">{user.enrolledCourses}</p>
+                        <p className="text-xs text-gray-600">Enrolled</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-sm font-medium">{user.completedCourses}</p>
+                        <p className="text-xs text-gray-600">Completed</p>
+                      </div>
+                      <div className="w-32">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-xs text-gray-600">Progress</span>
+                          <span className="text-xs text-gray-600">{user.totalProgress}%</span>
+                        </div>
+                        <Progress value={user.totalProgress} className="w-full" />
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
