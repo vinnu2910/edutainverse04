@@ -47,46 +47,51 @@ const queryClient = new QueryClient({
     },
     mutations: {
       retry: 0,
+      onError: (error) => {
+        console.error('Mutation error:', error);
+      },
     },
   },
 });
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/" element={<Index />} />
-            <Route path="/courses" element={<Courses />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<SignUp />} />
-            
-            {/* Student Routes */}
-            <Route path="/student/dashboard" element={<StudentDashboard />} />
-            <Route path="/student/courses" element={<StudentCourses />} />
-            <Route path="/student/courses/:id" element={<StudentCourseDetail />} />
-            <Route path="/student/mylearning" element={<StudentMyLearning />} />
-            <Route path="/student/learn/:courseId" element={<StudentCoursePlayer />} />
-            <Route path="/student/wishlist" element={<StudentWishlist />} />
-            <Route path="/student/profile" element={<StudentProfile />} />
-            
-            {/* Admin Routes */}
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
-            <Route path="/admin/courses" element={<AdminCourses />} />
-            <Route path="/admin/courses/:id/edit" element={<AdminCourseEditor />} />
-            <Route path="/admin/analytics/users" element={<AdminUserAnalytics />} />
-            <Route path="/admin/analytics/courses" element={<AdminCourseAnalytics />} />
-            
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/" element={<Index />} />
+              <Route path="/courses" element={<Courses />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<SignUp />} />
+              
+              {/* Student Routes */}
+              <Route path="/student/dashboard" element={<StudentDashboard />} />
+              <Route path="/student/courses" element={<StudentCourses />} />
+              <Route path="/student/courses/:id" element={<StudentCourseDetail />} />
+              <Route path="/student/mylearning" element={<StudentMyLearning />} />
+              <Route path="/student/learn/:courseId" element={<StudentCoursePlayer />} />
+              <Route path="/student/wishlist" element={<StudentWishlist />} />
+              <Route path="/student/profile" element={<StudentProfile />} />
+              
+              {/* Admin Routes */}
+              <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/admin/courses" element={<AdminCourses />} />
+              <Route path="/admin/courses/:id/edit" element={<AdminCourseEditor />} />
+              <Route path="/admin/analytics/users" element={<AdminUserAnalytics />} />
+              <Route path="/admin/analytics/courses" element={<AdminCourseAnalytics />} />
+              
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;

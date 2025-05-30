@@ -10,8 +10,15 @@ if (!container) {
 }
 
 const root = createRoot(container);
-root.render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);
+
+try {
+  root.render(
+    <StrictMode>
+      <App />
+    </StrictMode>
+  );
+} catch (error) {
+  console.error('Failed to render app:', error);
+  // Fallback rendering
+  container.innerHTML = '<div style="padding: 20px; text-align: center;"><h1>Application Error</h1><p>Failed to load the application. Please refresh the page.</p></div>';
+}

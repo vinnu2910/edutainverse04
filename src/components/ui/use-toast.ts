@@ -1,5 +1,5 @@
 
 // Re-export the toast functionality from the hooks directory
 export { useToast, toast } from "@/hooks/use-toast";
-// Use ToastProps from the toast component instead of non-existent Toast type
-export type { ToastProps as Toast } from "@/components/ui/toast";
+// Export ToastProps type for better type safety
+export type { ToastProps } from "@/components/ui/toast";
