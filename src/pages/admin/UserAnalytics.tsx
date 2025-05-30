@@ -34,10 +34,11 @@ const AdminUserAnalytics = () => {
     try {
       console.log('UserAnalytics: Fetching user analytics data...');
       
-      // Fetch all users first
+      // Fetch only student users (exclude admin users)
       const { data: usersData, error: usersError } = await supabase
         .from('users')
         .select('id, name, email, created_at')
+        .eq('role', 'student')
         .order('created_at', { ascending: false });
 
       if (usersError) {
@@ -46,7 +47,7 @@ const AdminUserAnalytics = () => {
       }
 
       if (usersData) {
-        console.log('UserAnalytics: Raw users data fetched:', usersData.length, 'users');
+        console.log('UserAnalytics: Raw student users data fetched:', usersData.length, 'students');
         
         // Fetch enrollments separately to avoid relationship ambiguity
         const { data: enrollmentsData, error: enrollmentsError } = await supabase
@@ -77,7 +78,7 @@ const AdminUserAnalytics = () => {
           };
         });
 
-        console.log('UserAnalytics: Processed users data:', processedUsers);
+        console.log('UserAnalytics: Processed student users data:', processedUsers);
         setUsers(processedUsers);
 
         // Calculate overall statistics
@@ -176,7 +177,7 @@ const AdminUserAnalytics = () => {
             {users.length === 0 ? (
               <div className="text-center py-8">
                 <Users className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-                <p className="text-gray-500">No users found.</p>
+                <p className="text-gray-500">No students found.</p>
               </div>
             ) : (
               <div className="space-y-6">
