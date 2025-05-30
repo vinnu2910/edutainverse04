@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
@@ -56,7 +55,7 @@ const StudentDashboard = () => {
     try {
       console.log('Dashboard: Starting data fetch for user:', user.id);
       
-      // Fetch enrolled courses with detailed logging
+      // Fetch enrolled courses with specific foreign key relationship
       console.log('Dashboard: Fetching enrollments...');
       const { data: enrollments, error: enrollmentError } = await supabase
         .from('enrollments')
@@ -64,7 +63,7 @@ const StudentDashboard = () => {
           course_id,
           progress,
           enrolled_at,
-          courses (
+          courses!enrollments_course_id_fkey (
             id,
             title,
             description,

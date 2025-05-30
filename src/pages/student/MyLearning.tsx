@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
@@ -59,7 +58,7 @@ const StudentMyLearning = () => {
           course_id,
           progress,
           enrolled_at,
-          courses (
+          courses!enrollments_course_id_fkey (
             id,
             title,
             description,

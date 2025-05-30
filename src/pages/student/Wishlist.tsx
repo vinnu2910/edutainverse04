@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../../components/Navbar';
@@ -51,7 +50,7 @@ const StudentWishlist = () => {
         .select(`
           id,
           course_id,
-          courses (*)
+          courses!wishlist_course_id_fkey (*)
         `)
         .eq('user_id', user.id);
 
