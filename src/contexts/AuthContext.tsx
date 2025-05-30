@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import bcrypt from 'bcryptjs';
 
 interface User {
   id: string;
@@ -11,7 +12,7 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string, role: 'student' | 'admin') => Promise<boolean>;
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   signup: (name: string, email: string, password: string) => Promise<boolean>;
   isLoading: boolean;
@@ -23,39 +24,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const login = async (email: string, password: string, role: 'student' | 'admin'): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<boolean> => {
     try {
       console.log('Attempting login for:', email);
       
-      // For demo purposes, we'll accept any password for demo accounts
-      if ((email === 'admin@demo.com' || email === 'student@demo.com') && password === 'password') {
-        const { data: userData, error } = await supabase
-          .from('users')
-          .select('*')
-          .eq('email', email)
-          .single();
+      // Fetch user from database
+      const { data: userData, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .single();
 
-        if (error) {
-          console.error('Login error:', error);
-          return false;
-        }
-
-        if (userData) {
-          const loggedInUser: User = {
-            id: userData.id,
-            name: userData.name,
-            email: userData.email,
-            role: userData.role as 'student' | 'admin',
-          };
-          
-          setUser(loggedInUser);
-          localStorage.setItem('lms_user', JSON.stringify(loggedInUser));
-          console.log('Login successful for user:', loggedInUser);
-          return true;
-        }
+      if (error || !userData) {
+        console.error('Login error - user not found:', error);
+        return false;
       }
+
+      // Verify password using bcrypt
+      const passwordMatch = await bcrypt.compare(password, userData.password_hash);
       
-      return false;
+      if (!passwordMatch) {
+        console.error('Login error - password mismatch');
+        return false;
+      }
+
+      const loggedInUser: User = {
+        id: userData.id,
+        name: userData.name,
+        email: userData.email,
+        role: userData.role as 'student' | 'admin',
+      };
+      
+      setUser(loggedInUser);
+      localStorage.setItem('lms_user', JSON.stringify(loggedInUser));
+      console.log('Login successful for user:', loggedInUser);
+      return true;
+      
     } catch (error) {
       console.error('Login error:', error);
       return false;
@@ -84,14 +88,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return false;
       }
 
-      // Create new user (in real app, password would be hashed)
+      // Hash password using bcrypt
+      const saltRounds = 10;
+      const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+      // Create new user in database
       const { data: newUserData, error } = await supabase
         .from('users')
         .insert([
           {
             name,
             email,
-            password_hash: '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // Demo hash
+            password_hash: hashedPassword,
             role: 'student'
           }
         ])
@@ -124,20 +132,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Check for existing user on mount
+  // Check for existing user on mount and restore from localStorage
   useEffect(() => {
-    const storedUser = localStorage.getItem('lms_user');
-    if (storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-        console.log('User restored from localStorage:', parsedUser);
-      } catch (error) {
-        console.error('Error parsing stored user:', error);
-        localStorage.removeItem('lms_user');
+    const initializeAuth = async () => {
+      const storedUser = localStorage.getItem('lms_user');
+      if (storedUser) {
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          
+          // Verify user still exists in database
+          const { data: userData, error } = await supabase
+            .from('users')
+            .select('id, name, email, role')
+            .eq('id', parsedUser.id)
+            .single();
+
+          if (error || !userData) {
+            console.log('Stored user no longer exists, clearing localStorage');
+            localStorage.removeItem('lms_user');
+          } else {
+            setUser({
+              id: userData.id,
+              name: userData.name,
+              email: userData.email,
+              role: userData.role as 'student' | 'admin',
+            });
+            console.log('User restored from localStorage:', userData);
+          }
+        } catch (error) {
+          console.error('Error parsing stored user:', error);
+          localStorage.removeItem('lms_user');
+        }
       }
-    }
-    setIsLoading(false);
+      setIsLoading(false);
+    };
+
+    initializeAuth();
   }, []);
 
   return (

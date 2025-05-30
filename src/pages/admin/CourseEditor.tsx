@@ -1,22 +1,22 @@
 
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
 import Navbar from '../../components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Trash2, Save } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 
 interface Video {
   id: string;
   title: string;
   youtubeId: string;
   duration: string;
+  order: number;
 }
 
 interface Module {
@@ -24,6 +24,7 @@ interface Module {
   title: string;
   description: string;
   videos: Video[];
+  order: number;
 }
 
 interface Course {
@@ -31,125 +32,56 @@ interface Course {
   title: string;
   description: string;
   instructor: string;
-  difficulty: 'Beginner' | 'Average' | 'Advanced';
+  difficulty: string;
   price: number;
   duration: string;
   thumbnail: string;
   category: string;
-  enrollment_count: number;
+  modules: Module[];
 }
 
-const CourseEditor = () => {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const isNew = id === 'new';
-  
-  const [loading, setLoading] = useState(!isNew);
-  const [saving, setSaving] = useState(false);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [difficulty, setDifficulty] = useState<'Beginner' | 'Average' | 'Advanced'>('Beginner');
-  const [instructor, setInstructor] = useState('');
-  const [price, setPrice] = useState('0');
-  const [duration, setDuration] = useState('');
-  const [thumbnail, setThumbnail] = useState('');
-  const [category, setCategory] = useState('');
-  const [modules, setModules] = useState<Module[]>([]);
-
-  useEffect(() => {
-    if (!isNew && id) {
-      fetchCourse(id);
-    } else {
-      setLoading(false);
-    }
-  }, [id, isNew]);
-
-  const fetchCourse = async (courseId: string) => {
-    try {
-      console.log('Fetching course:', courseId);
-      
-      // Fetch course details
-      const { data: courseData, error: courseError } = await supabase
-        .from('courses')
-        .select('*')
-        .eq('id', courseId)
-        .single();
-
-      if (courseError || !courseData) {
-        console.error('Error fetching course:', courseError);
-        toast({
-          title: "Error",
-          description: "Course not found",
-          variant: "destructive",
-        });
-        navigate('/admin/courses');
-        return;
-      }
-
-      // Set course data
-      setTitle(courseData.title);
-      setDescription(courseData.description || '');
-      setDifficulty(courseData.difficulty as 'Beginner' | 'Average' | 'Advanced');
-      setInstructor(courseData.instructor);
-      setPrice(courseData.price.toString());
-      setDuration(courseData.duration || '');
-      setThumbnail(courseData.thumbnail || '');
-      setCategory(courseData.category || '');
-
-      // Fetch modules with videos
-      const { data: modulesData, error: modulesError } = await supabase
-        .from('course_modules')
-        .select(`
-          *,
-          module_videos (*)
-        `)
-        .eq('course_id', courseId)
-        .order('order_index');
-
-      if (modulesError) {
-        console.error('Error fetching modules:', modulesError);
-        return;
-      }
-
-      if (modulesData) {
-        const formattedModules = modulesData.map(module => ({
-          id: module.id,
-          title: module.title,
-          description: module.description || '',
-          videos: (module.module_videos || []).map((video: any) => ({
-            id: video.id,
-            title: video.title,
-            youtubeId: video.youtube_url,
-            duration: video.duration
-          }))
-        }));
-        setModules(formattedModules);
-      }
-    } catch (error) {
-      console.error('Error fetching course:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+const AdminCourseEditor = () => {
+  const [course, setCourse] = useState<Course>({
+    id: '',
+    title: '',
+    description: '',
+    instructor: '',
+    difficulty: 'Beginner',
+    price: 0,
+    duration: '',
+    thumbnail: '',
+    category: '',
+    modules: []
+  });
 
   const addModule = () => {
     const newModule: Module = {
       id: Date.now().toString(),
       title: '',
       description: '',
-      videos: []
+      videos: [],
+      order: course.modules.length
     };
-    setModules([...modules, newModule]);
+    setCourse({
+      ...course,
+      modules: [...course.modules, newModule]
+    });
   };
 
-  const removeModule = (moduleId: string) => {
-    setModules(modules.filter(m => m.id !== moduleId));
+  const updateModule = (moduleId: string, field: string, value: string) => {
+    setCourse({
+      ...course,
+      modules: course.modules.map(module =>
+        module.id === moduleId ? { ...module, [field]: value } : module
+      )
+    });
   };
 
-  const updateModule = (moduleId: string, field: keyof Module, value: string) => {
-    setModules(modules.map(m => 
-      m.id === moduleId ? { ...m, [field]: value } : m
-    ));
+  const deleteModule = (moduleId: string) => {
+    setCourse({
+      ...course,
+      modules: course.modules.filter(module => module.id !== moduleId)
+    });
   };
 
   const addVideo = (moduleId: string) => {
@@ -157,391 +89,320 @@ const CourseEditor = () => {
       id: Date.now().toString(),
       title: '',
       youtubeId: '',
-      duration: '0:00'
+      duration: '',
+      order: 0
     };
-    setModules(modules.map(m => 
-      m.id === moduleId 
-        ? { ...m, videos: [...m.videos, newVideo] }
-        : m
-    ));
+
+    setCourse({
+      ...course,
+      modules: course.modules.map(module =>
+        module.id === moduleId
+          ? {
+              ...module,
+              videos: [...module.videos, { ...newVideo, order: module.videos.length }]
+            }
+          : module
+      )
+    });
   };
 
-  const removeVideo = (moduleId: string, videoId: string) => {
-    setModules(modules.map(m => 
-      m.id === moduleId 
-        ? { ...m, videos: m.videos.filter(v => v.id !== videoId) }
-        : m
-    ));
+  const updateVideo = (moduleId: string, videoId: string, field: string, value: string | number) => {
+    setCourse({
+      ...course,
+      modules: course.modules.map(module =>
+        module.id === moduleId
+          ? {
+              ...module,
+              videos: module.videos.map(video =>
+                video.id === videoId ? { ...video, [field]: value } : video
+              )
+            }
+          : module
+      )
+    });
   };
 
-  const updateVideo = (moduleId: string, videoId: string, field: keyof Video, value: string) => {
-    setModules(modules.map(m => 
-      m.id === moduleId 
-        ? {
-            ...m, 
-            videos: m.videos.map(v => 
-              v.id === videoId ? { ...v, [field]: value } : v
-            )
-          }
-        : m
-    ));
+  const deleteVideo = (moduleId: string, videoId: string) => {
+    setCourse({
+      ...course,
+      modules: course.modules.map(module =>
+        module.id === moduleId
+          ? {
+              ...module,
+              videos: module.videos.filter(video => video.id !== videoId)
+            }
+          : module
+      )
+    });
   };
 
-  const handleSave = async () => {
-    if (saving) return; // Prevent double submission
-    
-    setSaving(true);
-    
-    try {
-      console.log('Saving course...');
-      
-      const courseData = {
-        title,
-        description,
-        instructor,
-        difficulty,
-        price: parseFloat(price),
-        duration,
-        thumbnail,
-        category,
-      };
-
-      let courseId = id;
-
-      if (isNew) {
-        // Create new course
-        const { data: newCourse, error: courseError } = await supabase
-          .from('courses')
-          .insert([courseData])
-          .select()
-          .single();
-
-        if (courseError || !newCourse) {
-          console.error('Error creating course:', courseError);
-          toast({
-            title: "Error",
-            description: "Failed to create course",
-            variant: "destructive",
-          });
-          return;
-        }
-        
-        courseId = newCourse.id;
-        console.log('New course created with ID:', courseId);
-      } else {
-        // Update existing course
-        const { error: courseError } = await supabase
-          .from('courses')
-          .update(courseData)
-          .eq('id', courseId);
-
-        if (courseError) {
-          console.error('Error updating course:', courseError);
-          toast({
-            title: "Error",
-            description: "Failed to update course",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        // Delete existing modules and videos for update
-        console.log('Deleting existing modules for course:', courseId);
-        await supabase
-          .from('course_modules')
-          .delete()
-          .eq('course_id', courseId);
-      }
-
-      // Save modules and videos
-      console.log('Saving', modules.length, 'modules...');
-      for (let i = 0; i < modules.length; i++) {
-        const module = modules[i];
-        
-        const { data: savedModule, error: moduleError } = await supabase
-          .from('course_modules')
-          .insert([{
-            course_id: courseId,
-            title: module.title,
-            description: module.description,
-            order_index: i + 1
-          }])
-          .select()
-          .single();
-
-        if (moduleError || !savedModule) {
-          console.error('Error saving module:', moduleError);
-          continue;
-        }
-
-        console.log('Module saved:', savedModule.id, 'with', module.videos.length, 'videos');
-
-        // Save videos for this module
-        if (module.videos.length > 0) {
-          const videoData = module.videos.map((video, videoIndex) => ({
-            module_id: savedModule.id,
-            title: video.title,
-            youtube_url: video.youtubeId,
-            duration: video.duration,
-            order_index: videoIndex + 1
-          }));
-
-          const { error: videoError } = await supabase
-            .from('module_videos')
-            .insert(videoData);
-
-          if (videoError) {
-            console.error('Error saving videos:', videoError);
-          } else {
-            console.log('Videos saved for module:', savedModule.id);
-          }
-        }
-      }
-
-      toast({
-        title: "Success!",
-        description: isNew ? "Course created successfully" : "Course updated successfully",
-      });
-      
-      navigate('/admin/courses');
-    } catch (error) {
-      console.error('Error saving course:', error);
+  const saveCourse = () => {
+    if (!course.title || !course.description || !course.instructor) {
       toast({
         title: "Error",
-        description: "Failed to save course",
+        description: "Please fill in all required fields",
         variant: "destructive",
       });
-    } finally {
-      setSaving(false);
+      return;
     }
-  };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading course...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+    toast({
+      title: "Course saved",
+      description: "Course has been saved successfully",
+    });
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">
-            {isNew ? 'Create New Course' : 'Edit Course'}
-          </h1>
-          <Button onClick={handleSave} disabled={saving}>
-            <Save className="w-4 h-4 mr-2" />
-            {saving ? 'Saving...' : 'Save Course'}
-          </Button>
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold mb-2">Course Editor</h1>
+          <p className="text-gray-600">Create and edit your courses</p>
         </div>
 
-        {/* Course Basic Info */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Course Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="title">Course Title</Label>
-              <Input
-                id="title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Enter course title"
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Enter course description"
-                rows={4}
-              />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="instructor">Instructor</Label>
-                <Input
-                  id="instructor"
-                  value={instructor}
-                  onChange={(e) => setInstructor(e.target.value)}
-                  placeholder="Instructor name"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="price">Price ()</Label>
-                <Input
-                  id="price"
-                  type="number"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  placeholder="0"
-                />
-              </div>
-            </div>
+        <Tabs defaultValue="basic" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="basic">Basic Information</TabsTrigger>
+            <TabsTrigger value="content">Course Content</TabsTrigger>
+          </TabsList>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="duration">Duration</Label>
-                <Input
-                  id="duration"
-                  value={duration}
-                  onChange={(e) => setDuration(e.target.value)}
-                  placeholder="e.g., 20 hours"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="category">Category</Label>
-                <Input
-                  id="category"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  placeholder="e.g., Programming"
-                />
-              </div>
-            </div>
+          <TabsContent value="basic">
+            <Card>
+              <CardHeader>
+                <CardTitle>Basic Course Information</CardTitle>
+                <CardDescription>Enter the basic details of your course</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="title">Course Title *</Label>
+                    <Input
+                      id="title"
+                      value={course.title}
+                      onChange={(e) => setCourse({ ...course, title: e.target.value })}
+                      placeholder="Enter course title"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="instructor">Instructor *</Label>
+                    <Input
+                      id="instructor"
+                      value={course.instructor}
+                      onChange={(e) => setCourse({ ...course, instructor: e.target.value })}
+                      placeholder="Instructor name"
+                    />
+                  </div>
+                </div>
 
-            <div>
-              <Label htmlFor="thumbnail">Thumbnail URL</Label>
-              <Input
-                id="thumbnail"
-                value={thumbnail}
-                onChange={(e) => setThumbnail(e.target.value)}
-                placeholder="https://..."
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="difficulty">Difficulty Level</Label>
-              <Select value={difficulty} onValueChange={(value: 'Beginner' | 'Average' | 'Advanced') => setDifficulty(value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Beginner">Beginner</SelectItem>
-                  <SelectItem value="Average">Average</SelectItem>
-                  <SelectItem value="Advanced">Advanced</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
+                <div>
+                  <Label htmlFor="description">Description *</Label>
+                  <Textarea
+                    id="description"
+                    value={course.description}
+                    onChange={(e) => setCourse({ ...course, description: e.target.value })}
+                    placeholder="Course description"
+                    rows={4}
+                  />
+                </div>
 
-        {/* Modules Section */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Course Modules</CardTitle>
-            <Button onClick={addModule}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Module
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {modules.map((module, moduleIndex) => (
-              <div key={module.id} className="border rounded-lg p-4 mb-4">
-                <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-lg font-semibold">Module {moduleIndex + 1}</h3>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => removeModule(module.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="difficulty">Difficulty</Label>
+                    <Select value={course.difficulty} onValueChange={(value) => setCourse({ ...course, difficulty: value })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Beginner">Beginner</SelectItem>
+                        <SelectItem value="Average">Average</SelectItem>
+                        <SelectItem value="Advanced">Advanced</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="price">Price (₹)</Label>
+                    <Input
+                      id="price"
+                      type="number"
+                      value={course.price}
+                      onChange={(e) => setCourse({ ...course, price: Number(e.target.value) })}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="duration">Duration</Label>
+                    <Input
+                      id="duration"
+                      value={course.duration}
+                      onChange={(e) => setCourse({ ...course, duration: e.target.value })}
+                      placeholder="e.g., 8 hours"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="category">Category</Label>
+                    <Input
+                      id="category"
+                      value={course.category}
+                      onChange={(e) => setCourse({ ...course, category: e.target.value })}
+                      placeholder="Course category"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="thumbnail">Thumbnail URL</Label>
+                    <Input
+                      id="thumbnail"
+                      value={course.thumbnail}
+                      onChange={(e) => setCourse({ ...course, thumbnail: e.target.value })}
+                      placeholder="https://example.com/image.jpg"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="content">
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <CardTitle>Course Content</CardTitle>
+                    <CardDescription>Add modules and videos to your course</CardDescription>
+                  </div>
+                  <Button onClick={addModule}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Module
                   </Button>
                 </div>
-                
-                <div className="space-y-3 mb-4">
-                  <div>
-                    <Label>Module Title</Label>
-                    <Input
-                      value={module.title}
-                      onChange={(e) => updateModule(module.id, 'title', e.target.value)}
-                      placeholder="Enter module title"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label>Module Description</Label>
-                    <Textarea
-                      value={module.description}
-                      onChange={(e) => updateModule(module.id, 'description', e.target.value)}
-                      placeholder="Enter module description"
-                      rows={2}
-                    />
-                  </div>
-                </div>
-
-                {/* Videos */}
-                <div className="bg-gray-50 p-3 rounded">
-                  <div className="flex justify-between items-center mb-3">
-                    <h4 className="font-medium">Videos</h4>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => addVideo(module.id)}
-                    >
-                      <Plus className="w-3 h-3 mr-1" />
-                      Add Video
-                    </Button>
-                  </div>
-                  
-                  {module.videos.map((video, videoIndex) => (
-                    <div key={video.id} className="bg-white p-3 rounded border mb-2">
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="text-sm font-medium">Video {videoIndex + 1}</span>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {course.modules.map((module, moduleIndex) => (
+                  <Card key={module.id} className="border-l-4 border-l-blue-500">
+                    <CardHeader>
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1 space-y-4">
+                          <div>
+                            <Label>Module Title</Label>
+                            <Input
+                              value={module.title}
+                              onChange={(e) => updateModule(module.id, 'title', e.target.value)}
+                              placeholder={`Module ${moduleIndex + 1} title`}
+                            />
+                          </div>
+                          <div>
+                            <Label>Module Description</Label>
+                            <Textarea
+                              value={module.description}
+                              onChange={(e) => updateModule(module.id, 'description', e.target.value)}
+                              placeholder="Module description"
+                              rows={2}
+                            />
+                          </div>
+                        </div>
                         <Button
-                          size="sm"
                           variant="ghost"
-                          onClick={() => removeVideo(module.id, video.id)}
+                          size="sm"
+                          onClick={() => deleteModule(module.id)}
+                          className="ml-4 text-red-500 hover:bg-red-50"
                         >
-                          <Trash2 className="w-3 h-3" />
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
-                      
-                      <div className="grid grid-cols-2 gap-2 mb-2">
-                        <Input
-                          value={video.title}
-                          onChange={(e) => updateVideo(module.id, video.id, 'title', e.target.value)}
-                          placeholder="Video title"
-                        />
-                        <Input
-                          value={video.youtubeId}
-                          onChange={(e) => updateVideo(module.id, video.id, 'youtubeId', e.target.value)}
-                          placeholder="YouTube video ID"
-                        />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <h4 className="font-medium">Videos</h4>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => addVideo(module.id)}
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add Video
+                          </Button>
+                        </div>
+                        
+                        {module.videos.map((video, videoIndex) => (
+                          <div key={video.id} className="grid md:grid-cols-12 gap-4 items-end p-4 bg-gray-50 rounded-lg">
+                            <div className="md:col-span-4">
+                              <Label>Video Title</Label>
+                              <Input
+                                value={video.title}
+                                onChange={(e) => updateVideo(module.id, video.id, 'title', e.target.value)}
+                                placeholder={`Video ${videoIndex + 1} title`}
+                              />
+                            </div>
+                            <div className="md:col-span-3">
+                              <Label>YouTube ID</Label>
+                              <Input
+                                value={video.youtubeId}
+                                onChange={(e) => updateVideo(module.id, video.id, 'youtubeId', e.target.value)}
+                                placeholder="YouTube video ID"
+                              />
+                            </div>
+                            <div className="md:col-span-2">
+                              <Label>Duration</Label>
+                              <Input
+                                value={video.duration}
+                                onChange={(e) => updateVideo(module.id, video.id, 'duration', e.target.value)}
+                                placeholder="5:30"
+                              />
+                            </div>
+                            <div className="md:col-span-2">
+                              <Label>Order</Label>
+                              <Input
+                                type="number"
+                                value={video.order}
+                                onChange={(e) => updateVideo(module.id, video.id, 'order', parseInt(e.target.value) || 0)}
+                                placeholder="0"
+                              />
+                            </div>
+                            <div className="md:col-span-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => deleteVideo(module.id, video.id)}
+                                className="text-red-500 hover:bg-red-50"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                      
-                      <Input
-                        value={video.duration}
-                        onChange={(e) => updateVideo(module.id, video.id, 'duration', e.target.value)}
-                        placeholder="Duration (e.g., 10:30)"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+                    </CardContent>
+                  </Card>
+                ))}
+
+                {course.modules.length === 0 && (
+                  <div className="text-center py-12">
+                    <p className="text-gray-500 mb-4">No modules added yet</p>
+                    <Button onClick={addModule}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Your First Module
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        <div className="mt-8 flex justify-end">
+          <Button onClick={saveCourse} size="lg">
+            <Save className="w-4 h-4 mr-2" />
+            Save Course
+          </Button>
+        </div>
       </div>
     </div>
   );
 };
 
-export default CourseEditor;
+export default AdminCourseEditor;

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -5,14 +6,12 @@ import Navbar from '../components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<'student' | 'admin'>('student');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const { login, isLoading } = useAuth();
@@ -23,17 +22,23 @@ const Login = () => {
     setIsSubmitting(true);
 
     try {
-      const success = await login(email, password, role);
+      const success = await login(email, password);
       if (success) {
         toast({
           title: "Login successful!",
           description: "Welcome back to Edutainverse",
         });
-        navigate(role === 'admin' ? '/admin/dashboard' : '/student/dashboard');
+        
+        // Navigate based on user role after successful login
+        const storedUser = localStorage.getItem('lms_user');
+        if (storedUser) {
+          const user = JSON.parse(storedUser);
+          navigate(user.role === 'admin' ? '/admin/dashboard' : '/student/dashboard');
+        }
       } else {
         toast({
           title: "Invalid credentials",
-          description: "User not found or password incorrect.",
+          description: "Please check your email and password.",
           variant: "destructive",
         });
       }
@@ -95,19 +100,6 @@ const Login = () => {
                 />
               </div>
               
-              {/* <div>
-                <Label htmlFor="role">Login as</Label>
-                <Select value={role} onValueChange={(value: 'student' | 'admin') => setRole(value)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="student">Student</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div> */}
-              
               <Button type="submit" className="w-full" disabled={isSubmitting}>
                 {isSubmitting ? 'Logging in...' : 'Login'}
               </Button>
@@ -120,12 +112,6 @@ const Login = () => {
                   Sign up here
                 </Link>
               </p>
-            </div>
-            
-            <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-              <p className="text-sm text-blue-800 font-medium">Demo Credentials:</p>
-              <p className="text-xs text-blue-700">Admin: admin@demo.com / password</p>
-              <p className="text-xs text-blue-700">Student: student@demo.com / password</p>
             </div>
           </CardContent>
         </Card>

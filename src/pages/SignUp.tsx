@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -7,7 +8,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 
 const SignUp = () => {
   const [name, setName] = useState('');
@@ -31,6 +31,15 @@ const SignUp = () => {
       return;
     }
 
+    if (password.length < 6) {
+      toast({
+        title: "Password too short",
+        description: "Password must be at least 6 characters long.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -38,9 +47,15 @@ const SignUp = () => {
       if (success) {
         toast({
           title: "Account created successfully!",
-          description: "Welcome to EduLMS. You're now logged in.",
+          description: "Welcome to Edutainverse. You're now logged in.",
         });
         navigate('/student/dashboard');
+      } else {
+        toast({
+          title: "Signup failed",
+          description: "Email already exists or there was an error creating your account.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       toast({
@@ -109,7 +124,9 @@ const SignUp = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
+                  minLength={6}
                 />
+                <p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
               </div>
               
               <div>
@@ -142,36 +159,6 @@ const SignUp = () => {
       </div>
     </div>
   );
-};
-
-const signup = async (name: string, email: string, password: string) => {
-  // 1. Create user in Supabase Auth
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: { name }, // store name in user metadata
-    },
-  });
-
-  if (error) return false;
-
-  // 2. Optionally, insert into your 'users' table for profile info
-  const userId = data?.user?.id;
-  if (userId) {
-    const { error: dbError } = await supabase
-      .from('users')
-      .insert([{
-        id: userId,
-        name,
-        email,
-        password_hash: '-', // Use a placeholder, never the real password!
-        role: 'student',    // or 'admin' if needed
-      }]);
-    if (dbError) return false;
-  }
-
-  return true;
 };
 
 export default SignUp;
