@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import Navbar from '../../components/Navbar';
+import Layout from '../../components/Layout';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -131,71 +131,70 @@ const AdminDashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex items-center justify-center py-20">
+      <Layout>
+        <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
             <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading dashboard...</p>
+            <p className="mt-4 text-slate-600">Loading dashboard...</p>
           </div>
         </div>
-      </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      
+    <Layout>
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Admin Dashboard</h1>
-          <p className="text-gray-600">Welcome back, {user?.name}! Here's your platform overview.</p>
+          <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent">
+            Admin Dashboard
+          </h1>
+          <p className="text-slate-600">Welcome back, {user?.name}! Here's your platform overview.</p>
         </div>
 
         {/* Stats Cards */}
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-50 to-white">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-slate-700">Total Users</CardTitle>
+              <Users className="h-4 w-4 text-blue-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalUsers.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">Registered users</p>
+              <div className="text-2xl font-bold text-slate-900">{stats.totalUsers.toLocaleString()}</div>
+              <p className="text-xs text-slate-500">Registered users</p>
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-purple-50 to-white">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Courses</CardTitle>
-              <BookOpen className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-slate-700">Total Courses</CardTitle>
+              <BookOpen className="h-4 w-4 text-purple-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalCourses}</div>
-              <p className="text-xs text-muted-foreground">Available courses</p>
+              <div className="text-2xl font-bold text-slate-900">{stats.totalCourses}</div>
+              <p className="text-xs text-slate-500">Available courses</p>
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-green-50 to-white">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Enrollments</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-slate-700">Total Enrollments</CardTitle>
+              <TrendingUp className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalEnrollments.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">Course enrollments</p>
+              <div className="text-2xl font-bold text-slate-900">{stats.totalEnrollments.toLocaleString()}</div>
+              <p className="text-xs text-slate-500">Course enrollments</p>
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-orange-50 to-white">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Completion Rate</CardTitle>
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-slate-700">Completion Rate</CardTitle>
+              <BarChart3 className="h-4 w-4 text-orange-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.completionRate}%</div>
-              <p className="text-xs text-muted-foreground">Average completion rate</p>
+              <div className="text-2xl font-bold text-slate-900">{stats.completionRate}%</div>
+              <p className="text-xs text-slate-500">Average completion rate</p>
             </CardContent>
           </Card>
         </div>
@@ -203,24 +202,24 @@ const AdminDashboard = () => {
         {/* Quick Actions */}
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <Link to="/admin/courses">
-            <Button className="w-full h-20 flex flex-col gap-2">
+            <Button className="w-full h-20 flex flex-col gap-2 bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg">
               <BookOpen className="w-6 h-6" />
               Manage Courses
             </Button>
           </Link>
           <Link to="/admin/analytics/users">
-            <Button variant="outline" className="w-full h-20 flex flex-col gap-2">
+            <Button variant="outline" className="w-full h-20 flex flex-col gap-2 border-slate-200 hover:bg-slate-50">
               <Users className="w-6 h-6" />
               User Analytics
             </Button>
           </Link>
           <Link to="/admin/analytics/courses">
-            <Button variant="outline" className="w-full h-20 flex flex-col gap-2">
+            <Button variant="outline" className="w-full h-20 flex flex-col gap-2 border-slate-200 hover:bg-slate-50">
               <BarChart3 className="w-6 h-6" />
               Course Analytics
             </Button>
           </Link>
-          <Button variant="outline" className="w-full h-20 flex flex-col gap-2">
+          <Button variant="outline" className="w-full h-20 flex flex-col gap-2 border-slate-200 hover:bg-slate-50">
             <TrendingUp className="w-6 h-6" />
             Reports
           </Button>
@@ -228,9 +227,9 @@ const AdminDashboard = () => {
 
         {/* Most Popular Course */}
         {mostEnrolledCourse && (
-          <Card>
+          <Card className="border-0 shadow-lg">
             <CardHeader>
-              <CardTitle>Most Enrolled Course</CardTitle>
+              <CardTitle className="text-slate-900">Most Enrolled Course</CardTitle>
               <CardDescription>Your most popular course</CardDescription>
             </CardHeader>
             <CardContent>
@@ -241,19 +240,19 @@ const AdminDashboard = () => {
                   className="w-16 h-16 object-cover rounded-lg"
                 />
                 <div className="flex-1">
-                  <h3 className="font-semibold">{mostEnrolledCourse.title}</h3>
-                  <p className="text-sm text-gray-600">By {mostEnrolledCourse.instructor}</p>
-                  <p className="text-sm text-gray-500">{mostEnrolledCourse.enrollment_count} students enrolled</p>
+                  <h3 className="font-semibold text-slate-900">{mostEnrolledCourse.title}</h3>
+                  <p className="text-sm text-slate-600">By {mostEnrolledCourse.instructor}</p>
+                  <p className="text-sm text-slate-500">{mostEnrolledCourse.enrollment_count} students enrolled</p>
                 </div>
                 <Link to={`/admin/courses/${mostEnrolledCourse.id}/edit`}>
-                  <Button variant="outline">Edit Course</Button>
+                  <Button variant="outline" className="border-slate-200 hover:bg-slate-50">Edit Course</Button>
                 </Link>
               </div>
             </CardContent>
           </Card>
         )}
       </div>
-    </div>
+    </Layout>
   );
 };
 

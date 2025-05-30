@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import Navbar from '../../components/Navbar';
+import Layout from '../../components/Layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
@@ -122,26 +122,24 @@ const AdminUserAnalytics: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex items-center justify-center py-20">
+      <Layout>
+        <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
             <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading user analytics...</p>
+            <p className="mt-4 text-slate-600">Loading user analytics...</p>
           </div>
         </div>
-      </div>
+      </Layout>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex items-center justify-center py-20">
+      <Layout>
+        <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
             <div className="text-red-600 text-lg mb-4">Error</div>
-            <p className="text-gray-600">{error}</p>
+            <p className="text-slate-600">{error}</p>
             <button 
               onClick={fetchUserAnalytics}
               className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
@@ -150,81 +148,83 @@ const AdminUserAnalytics: React.FC = () => {
             </button>
           </div>
         </div>
-      </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      
+    <Layout>
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">User Analytics</h1>
-          <p className="text-gray-600">Track student progress and engagement</p>
+          <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent">
+            User Analytics
+          </h1>
+          <p className="text-slate-600">Track student progress and engagement</p>
         </div>
 
         {/* Summary Cards */}
         <div className="grid md:grid-cols-3 gap-6 mb-8">
-          <Card>
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-50 to-white">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Students</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-slate-700">Total Students</CardTitle>
+              <Users className="h-4 w-4 text-blue-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalUsers}</div>
-              <p className="text-xs text-muted-foreground">Active learners</p>
+              <div className="text-2xl font-bold text-slate-900">{stats.totalUsers}</div>
+              <p className="text-xs text-slate-500">Active learners</p>
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-purple-50 to-white">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Avg. Enrollments</CardTitle>
-              <BookOpen className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-slate-700">Avg. Enrollments</CardTitle>
+              <BookOpen className="h-4 w-4 text-purple-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.avgEnrollments}</div>
-              <p className="text-xs text-muted-foreground">Courses per student</p>
+              <div className="text-2xl font-bold text-slate-900">{stats.avgEnrollments}</div>
+              <p className="text-xs text-slate-500">Courses per student</p>
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-green-50 to-white">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Avg. Progress</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-slate-700">Avg. Progress</CardTitle>
+              <TrendingUp className="h-4 w-4 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.avgProgress}%</div>
-              <p className="text-xs text-muted-foreground">Overall completion</p>
+              <div className="text-2xl font-bold text-slate-900">{stats.avgProgress}%</div>
+              <p className="text-xs text-slate-500">Overall completion</p>
             </CardContent>
           </Card>
         </div>
 
         {/* Student List */}
-        <Card>
+        <Card className="border-0 shadow-lg">
           <CardHeader>
-            <CardTitle>Student Overview</CardTitle>
+            <CardTitle className="text-slate-900">Student Overview</CardTitle>
             <CardDescription>Individual student progress and enrollments</CardDescription>
           </CardHeader>
           <CardContent>
             {users.length === 0 ? (
               <div className="text-center py-8">
-                <Users className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-                <p className="text-gray-500">No students found.</p>
+                <Users className="w-16 h-16 mx-auto text-slate-400 mb-4" />
+                <p className="text-slate-500">No students found.</p>
               </div>
             ) : (
               <div className="space-y-6">
                 {users.map((user) => (
-                  <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div key={user.id} className="flex items-center justify-between p-4 border border-slate-100 rounded-lg bg-slate-50/50">
                     <div className="flex items-center space-x-4">
                       <Avatar>
                         <AvatarImage src="/placeholder.svg" alt={user.name} />
-                        <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
+                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white">
+                          {user.name.charAt(0).toUpperCase()}
+                        </AvatarFallback>
                       </Avatar>
                       <div>
-                        <h3 className="font-medium">{user.name}</h3>
-                        <p className="text-sm text-gray-600">{user.email}</p>
-                        <p className="text-xs text-gray-500">
+                        <h3 className="font-medium text-slate-900">{user.name}</h3>
+                        <p className="text-sm text-slate-600">{user.email}</p>
+                        <p className="text-xs text-slate-500">
                           Joined: {new Date(user.joinDate).toLocaleDateString()}
                         </p>
                       </div>
@@ -232,17 +232,17 @@ const AdminUserAnalytics: React.FC = () => {
                     
                     <div className="flex items-center space-x-8">
                       <div className="text-center">
-                        <p className="text-sm font-medium">{user.enrolledCourses}</p>
-                        <p className="text-xs text-gray-600">Enrolled</p>
+                        <p className="text-sm font-medium text-slate-900">{user.enrolledCourses}</p>
+                        <p className="text-xs text-slate-600">Enrolled</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-sm font-medium">{user.completedCourses}</p>
-                        <p className="text-xs text-gray-600">Completed</p>
+                        <p className="text-sm font-medium text-slate-900">{user.completedCourses}</p>
+                        <p className="text-xs text-slate-600">Completed</p>
                       </div>
                       <div className="w-32">
                         <div className="flex justify-between items-center mb-1">
-                          <span className="text-xs text-gray-600">Progress</span>
-                          <span className="text-xs text-gray-600">{user.totalProgress}%</span>
+                          <span className="text-xs text-slate-600">Progress</span>
+                          <span className="text-xs text-slate-600">{user.totalProgress}%</span>
                         </div>
                         <Progress value={user.totalProgress} className="w-full" />
                       </div>
@@ -254,7 +254,7 @@ const AdminUserAnalytics: React.FC = () => {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </Layout>
   );
 };
 

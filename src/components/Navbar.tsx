@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { User, LogOut, BookOpen, Heart, BarChart3, Settings, Menu } from 'lucide-react';
+import { User, LogOut, BookOpen, Heart, BarChart3, Settings, Menu, Users } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 interface NavbarProps {
@@ -74,7 +74,10 @@ const Navbar: React.FC<NavbarProps> = ({ isPublic = false }) => {
                       Courses
                     </Link>
                     <Link to="/admin/analytics/users" className="text-slate-600 hover:text-slate-900 font-medium transition-colors duration-200">
-                      Analytics
+                      User Analytics
+                    </Link>
+                    <Link to="/admin/analytics/courses" className="text-slate-600 hover:text-slate-900 font-medium transition-colors duration-200">
+                      Course Analytics
                     </Link>
                   </>
                 )}
@@ -130,8 +133,14 @@ const Navbar: React.FC<NavbarProps> = ({ isPublic = false }) => {
                     <>
                       <DropdownMenuItem asChild>
                         <Link to="/admin/analytics/users" className="flex items-center">
+                          <Users className="mr-2 h-4 w-4" />
+                          User Analytics
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/admin/analytics/courses" className="flex items-center">
                           <BarChart3 className="mr-2 h-4 w-4" />
-                          Analytics
+                          Course Analytics
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
