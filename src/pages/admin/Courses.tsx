@@ -52,6 +52,10 @@ const AdminCourses = () => {
   };
 
   const deleteCourse = async (courseId: string) => {
+    if (!confirm('Are you sure you want to delete this course? This action cannot be undone.')) {
+      return;
+    }
+
     try {
       console.log('Deleting course:', courseId);
       const { error } = await supabase
@@ -176,7 +180,7 @@ const AdminCourses = () => {
               <CardContent>
                 <div className="flex justify-between items-center mb-4">
                   <span className="text-2xl font-bold text-green-600">
-                    {course.price}
+                    ₹{course.price}
                   </span>
                   <span className="text-sm text-gray-500">
                     {course.enrollment_count} students
@@ -184,7 +188,7 @@ const AdminCourses = () => {
                 </div>
                 
                 <div className="flex gap-2">
-                  <Link to={`/admin/courses/{course.id}/edit`} className="flex-1">
+                  <Link to={`/admin/courses/${course.id}/edit`} className="flex-1">
                     <Button variant="outline" className="w-full">
                       <Edit className="w-4 h-4 mr-2" />
                       Edit
@@ -205,7 +209,14 @@ const AdminCourses = () => {
 
         {courses.length === 0 && (
           <div className="text-center py-12">
+            <BookOpen className="w-16 h-16 mx-auto text-gray-400 mb-4" />
             <p className="text-gray-500 text-lg">No courses found. Create your first course!</p>
+            <Link to="/admin/courses/new/edit" className="mt-4 inline-block">
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Create New Course
+              </Button>
+            </Link>
           </div>
         )}
       </div>

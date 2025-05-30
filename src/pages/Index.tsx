@@ -1,37 +1,86 @@
+
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { supabase } from '../integrations/supabase/client'; // Adjust path as needed
+import { supabase } from '../integrations/supabase/client';
 import { BookOpen, Users, Award, Clock, Star, ChevronRight, Play, User, Heart } from 'lucide-react';
+
+interface Course {
+  id: string;
+  title: string;
+  description: string;
+  instructor: string;
+  difficulty: string;
+  price: number;
+  duration: string;
+  thumbnail: string;
+  category: string;
+  enrollment_count: number;
+}
 
 const Index = () => {
   const { user } = useAuth();
-  const [popularCourses, setPopularCourses] = useState([]);
-  const [recentCourses, setRecentCourses] = useState([]);
+  const [popularCourses, setPopularCourses] = useState<Course[]>([]);
+  const [recentCourses, setRecentCourses] = useState<Course[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchCourses = async () => {
-      // Use correct field names as per your table schema
-      const { data: popular, error: popularError } = await supabase
-        .from('courses')
-        .select('*')
-        .order('enrollment_count', { ascending: false }) // <-- adjust field name
-        .limit(3);
+      try {
+        console.log('Fetching courses for homepage...');
+        
+        // Fetch popular courses (ordered by enrollment count)
+        const { data: popular, error: popularError } = await supabase
+          .from('courses')
+          .select('*')
+          .order('enrollment_count', { ascending: false })
+          .limit(3);
 
-      const { data: recent, error: recentError } = await supabase
-        .from('courses')
-        .select('*')
-        .order('created_at', { ascending: false }) // <-- adjust field name
-        .limit(3);
+        // Fetch recent courses (ordered by creation date)
+        const { data: recent, error: recentError } = await supabase
+          .from('courses')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(3);
 
-      if (!popularError && popular) setPopularCourses(popular);
-      if (!recentError && recent) setRecentCourses(recent);
+        if (popularError) {
+          console.error('Error fetching popular courses:', popularError);
+        } else if (popular) {
+          setPopularCourses(popular);
+          console.log('Popular courses fetched:', popular.length);
+        }
+
+        if (recentError) {
+          console.error('Error fetching recent courses:', recentError);
+        } else if (recent) {
+          setRecentCourses(recent);
+          console.log('Recent courses fetched:', recent.length);
+        }
+      } catch (error) {
+        console.error('Error fetching courses:', error);
+      } finally {
+        setLoading(false);
+      }
     };
+
     fetchCourses();
   }, []);
+
+  if (loading) {
+    return (
+      <Layout isPublic={!user}>
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout isPublic={!user}>
@@ -121,7 +170,7 @@ const Index = () => {
       <section className="py-20 bg-gradient-to-b from-slate-50 to-white">
         <div className="max-w-7xl mx-auto px-4">
           <div className="text-center mb-16 space-y-4">
-            <h2 className="text-4xl lg:text-5xl font-bold">Why Choose EduLMS?</h2>
+            <h2 className="text-4xl lg:text-5xl font-bold">Why Choose Edutainverse?</h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
               Experience learning like never before with our cutting-edge platform
             </p>
@@ -168,149 +217,143 @@ const Index = () => {
       </section>
 
       {/* Popular Courses Section */}
-      <section className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="text-center mb-16 space-y-4">
-            <h2 className="text-4xl lg:text-5xl font-bold">Popular Courses</h2>
-            <p className="text-xl text-gray-600">
-              Join thousands of students in our most-loved courses
-            </p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-8">
-            {popularCourses.map((course) => (
-              <Card key={course.id} className="group border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 overflow-hidden">
-                <div className="relative">
-                  <img 
-                    src={course.thumbnail} 
-                    alt={course.title}
-                    className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                  <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full">
-                    <span className="text-sm font-medium text-blue-600">{course.difficulty}</span>
-                  </div>
-                </div>
-                <CardContent className="p-6">
-                  <div className="space-y-3">
-                    <h3 className="text-xl font-bold group-hover:text-blue-600 transition-colors">
-                      {course.title}
-                    </h3>
-                    <p className="text-gray-600 text-sm line-clamp-2">
-                      {course.description}
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-1">
-                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                        <span className="text-sm font-medium">{course.rating}</span>
-                        <span className="text-sm text-gray-500">({course.enrollmentCount})</span>
-                      </div>
-                      <div className="text-xl font-bold text-green-600">
-                        ₹{course.price}
-                      </div>
-                    </div>
-                    <div className="flex items-center text-sm text-gray-500 space-x-4">
-                      <div className="flex items-center space-x-1">
-                        <Clock className="w-4 h-4" />
-                        <span>6 weeks</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <Users className="w-4 h-4" />
-                        <span>{course.enrollmentCount} students</span>
-                      </div>
+      {popularCourses.length > 0 && (
+        <section className="py-20 bg-white">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="text-center mb-16 space-y-4">
+              <h2 className="text-4xl lg:text-5xl font-bold">Popular Courses</h2>
+              <p className="text-xl text-gray-600">
+                Join thousands of students in our most-loved courses
+              </p>
+            </div>
+            <div className="grid md:grid-cols-3 gap-8">
+              {popularCourses.map((course) => (
+                <Card key={course.id} className="group border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 overflow-hidden">
+                  <div className="relative">
+                    <img 
+                      src={course.thumbnail} 
+                      alt={course.title}
+                      className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                    <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full">
+                      <span className="text-sm font-medium text-blue-600">{course.difficulty}</span>
                     </div>
                   </div>
-                  <Link to={user ? (user.role === 'admin' ? '/admin/courses' : '/student/courses') : '/courses'} className="block mt-4">
-                    <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-                      View Course
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-            ))}
+                  <CardContent className="p-6">
+                    <div className="space-y-3">
+                      <h3 className="text-xl font-bold group-hover:text-blue-600 transition-colors">
+                        {course.title}
+                      </h3>
+                      <p className="text-gray-600 text-sm line-clamp-2">
+                        {course.description}
+                      </p>
+                      <div className="flex items-center justify-between">
+                        <div className="text-xl font-bold text-green-600">
+                          ₹{course.price}
+                        </div>
+                      </div>
+                      <div className="flex items-center text-sm text-gray-500 space-x-4">
+                        <div className="flex items-center space-x-1">
+                          <Clock className="w-4 h-4" />
+                          <span>{course.duration}</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <Users className="w-4 h-4" />
+                          <span>{course.enrollment_count} students</span>
+                        </div>
+                      </div>
+                    </div>
+                    <Link to={user ? (user.role === 'admin' ? '/admin/courses' : '/student/courses') : '/courses'} className="block mt-4">
+                      <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+                        View Course
+                      </Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            
+            <div className="text-center mt-12">
+              <Link to={user ? (user.role === 'admin' ? '/admin/courses' : '/student/courses') : '/courses'}>
+                <Button size="lg" variant="outline" className="border-blue-200 hover:bg-blue-50">
+                  View All Courses
+                  <ChevronRight className="w-5 h-5 ml-2" />
+                </Button>
+              </Link>
+            </div>
           </div>
-          
-          <div className="text-center mt-12">
-            <Link to={user ? (user.role === 'admin' ? '/admin/courses' : '/student/courses') : '/courses'}>
-              <Button size="lg" variant="outline" className="border-blue-200 hover:bg-blue-50">
-                View All Courses
-                <ChevronRight className="w-5 h-5 ml-2" />
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Recently Uploaded Courses Section */}
-      <section className="py-20 bg-slate-50">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="text-center mb-16 space-y-4">
-            <h2 className="text-4xl lg:text-5xl font-bold">Recently Uploaded Courses</h2>
-            <p className="text-xl text-gray-600">
-              Check out the latest additions to our course library
-            </p>
-          </div>
-          
-          <div className="grid md:grid-cols-3 gap-8">
-            {recentCourses.map((course) => (
-              <Card key={course.id} className="group border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 overflow-hidden">
-                <div className="relative">
-                  <img 
-                    src={course.thumbnail} 
-                    alt={course.title}
-                    className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                  <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full">
-                    <span className="text-sm font-medium text-blue-600">{course.difficulty}</span>
-                  </div>
-                </div>
-                <CardContent className="p-6">
-                  <div className="space-y-3">
-                    <h3 className="text-xl font-bold group-hover:text-blue-600 transition-colors">
-                      {course.title}
-                    </h3>
-                    <p className="text-gray-600 text-sm line-clamp-2">
-                      {course.description}
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-1">
-                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                        <span className="text-sm font-medium">{course.rating}</span>
-                        <span className="text-sm text-gray-500">({course.enrollmentCount})</span>
-                      </div>
-                      <div className="text-xl font-bold text-green-600">
-                        ₹{course.price}
-                      </div>
-                    </div>
-                    <div className="flex items-center text-sm text-gray-500 space-x-4">
-                      <div className="flex items-center space-x-1">
-                        <Clock className="w-4 h-4" />
-                        <span>6 weeks</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <Users className="w-4 h-4" />
-                        <span>{course.enrollmentCount} students</span>
-                      </div>
+      {recentCourses.length > 0 && (
+        <section className="py-20 bg-slate-50">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="text-center mb-16 space-y-4">
+              <h2 className="text-4xl lg:text-5xl font-bold">Recently Uploaded Courses</h2>
+              <p className="text-xl text-gray-600">
+                Check out the latest additions to our course library
+              </p>
+            </div>
+            
+            <div className="grid md:grid-cols-3 gap-8">
+              {recentCourses.map((course) => (
+                <Card key={course.id} className="group border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 overflow-hidden">
+                  <div className="relative">
+                    <img 
+                      src={course.thumbnail} 
+                      alt={course.title}
+                      className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                    <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full">
+                      <span className="text-sm font-medium text-blue-600">{course.difficulty}</span>
                     </div>
                   </div>
-                  <Link to={user ? (user.role === 'admin' ? '/admin/courses' : '/student/courses') : '/courses'} className="block mt-4">
-                    <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-                      View Course
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-            ))}
+                  <CardContent className="p-6">
+                    <div className="space-y-3">
+                      <h3 className="text-xl font-bold group-hover:text-blue-600 transition-colors">
+                        {course.title}
+                      </h3>
+                      <p className="text-gray-600 text-sm line-clamp-2">
+                        {course.description}
+                      </p>
+                      <div className="flex items-center justify-between">
+                        <div className="text-xl font-bold text-green-600">
+                          ₹{course.price}
+                        </div>
+                      </div>
+                      <div className="flex items-center text-sm text-gray-500 space-x-4">
+                        <div className="flex items-center space-x-1">
+                          <Clock className="w-4 h-4" />
+                          <span>{course.duration}</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <Users className="w-4 h-4" />
+                          <span>{course.enrollment_count} students</span>
+                        </div>
+                      </div>
+                    </div>
+                    <Link to={user ? (user.role === 'admin' ? '/admin/courses' : '/student/courses') : '/courses'} className="block mt-4">
+                      <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+                        View Course
+                      </Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            
+            <div className="text-center mt-12">
+              <Link to={user ? (user.role === 'admin' ? '/admin/courses' : '/student/courses') : '/courses'}>
+                <Button size="lg" variant="outline" className="border-blue-200 hover:bg-blue-50">
+                  View All Courses
+                  <ChevronRight className="w-5 h-5 ml-2" />
+                </Button>
+              </Link>
+            </div>
           </div>
-          
-          <div className="text-center mt-12">
-            <Link to={user ? (user.role === 'admin' ? '/admin/courses' : '/student/courses') : '/courses'}>
-              <Button size="lg" variant="outline" className="border-blue-200 hover:bg-blue-50">
-                View All Courses
-                <ChevronRight className="w-5 h-5 ml-2" />
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* CTA Section - Only show for non-logged in users */}
       {!user && (
