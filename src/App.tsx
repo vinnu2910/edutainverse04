@@ -29,7 +29,14 @@ import AdminCourseEditor from "./pages/admin/CourseEditor";
 import AdminUserAnalytics from "./pages/admin/UserAnalytics";
 import AdminCourseAnalytics from "./pages/admin/CourseAnalytics";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
