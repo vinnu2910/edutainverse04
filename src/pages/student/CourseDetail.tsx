@@ -5,7 +5,7 @@ import Navbar from '../../components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Users, Clock, BookOpen, Play } from 'lucide-react';
+import { Users, Clock, BookOpen, Play, Heart } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '../../contexts/AuthContext';
@@ -45,12 +45,16 @@ const StudentCourseDetail = () => {
   const [course, setCourse] = useState<Course | null>(null);
   const [modules, setModules] = useState<Module[]>([]);
   const [isEnrolled, setIsEnrolled] = useState(false);
+  const [isInWishlist, setIsInWishlist] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (id && user) {
+    if (id) {
       fetchCourse();
-      checkEnrollment();
+      if (user) {
+        checkEnrollment();
+        checkWishlist();
+      }
     }
   }, [id, user]);
 
@@ -58,7 +62,7 @@ const StudentCourseDetail = () => {
     if (!id) return;
 
     try {
-      console.log('Fetching course details for:', id);
+      console.log('CourseDetail: Fetching course details for:', id);
       
       // Fetch course details
       const { data: courseData, error: courseError } = await supabase
@@ -67,34 +71,50 @@ const StudentCourseDetail = () => {
         .eq('id', id)
         .single();
 
-      if (courseError || !courseData) {
-        console.error('Error fetching course:', courseError);
+      if (courseError) {
+        console.error('CourseDetail: Error fetching course:', courseError);
+        toast({
+          title: "Error",
+          description: "Failed to load course details",
+          variant: "destructive",
+        });
         return;
       }
 
-      setCourse(courseData);
+      if (courseData) {
+        console.log('CourseDetail: Course data fetched:', courseData);
+        setCourse(courseData);
 
-      // Fetch modules with videos
-      const { data: modulesData, error: modulesError } = await supabase
-        .from('course_modules')
-        .select(`
-          *,
-          module_videos (*)
-        `)
-        .eq('course_id', id)
-        .order('order_index');
+        // Try to fetch modules - this might not exist in current schema
+        try {
+          const { data: modulesData, error: modulesError } = await supabase
+            .from('course_modules')
+            .select(`
+              *,
+              module_videos (*)
+            `)
+            .eq('course_id', id)
+            .order('order_index');
 
-      if (modulesError) {
-        console.error('Error fetching modules:', modulesError);
-        return;
-      }
-
-      if (modulesData) {
-        setModules(modulesData);
-        console.log('Course details fetched successfully');
+          if (modulesError) {
+            console.log('CourseDetail: Modules table might not exist:', modulesError);
+            setModules([]);
+          } else if (modulesData) {
+            console.log('CourseDetail: Modules fetched:', modulesData);
+            setModules(modulesData);
+          }
+        } catch (moduleError) {
+          console.log('CourseDetail: Modules not available:', moduleError);
+          setModules([]);
+        }
       }
     } catch (error) {
-      console.error('Error fetching course:', error);
+      console.error('CourseDetail: Error fetching course:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load course details",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -112,13 +132,37 @@ const StudentCourseDetail = () => {
         .single();
 
       if (error && error.code !== 'PGRST116') {
-        console.error('Error checking enrollment:', error);
+        console.error('CourseDetail: Error checking enrollment:', error);
         return;
       }
 
       setIsEnrolled(!!data);
+      console.log('CourseDetail: Enrollment status:', !!data);
     } catch (error) {
-      console.error('Error checking enrollment:', error);
+      console.error('CourseDetail: Error checking enrollment:', error);
+    }
+  };
+
+  const checkWishlist = async () => {
+    if (!id || !user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('wishlist')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('course_id', id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('CourseDetail: Error checking wishlist:', error);
+        return;
+      }
+
+      setIsInWishlist(!!data);
+      console.log('CourseDetail: Wishlist status:', !!data);
+    } catch (error) {
+      console.error('CourseDetail: Error checking wishlist:', error);
     }
   };
 
@@ -126,7 +170,7 @@ const StudentCourseDetail = () => {
     if (!id || !user) return;
 
     try {
-      console.log('Enrolling in course:', id);
+      console.log('CourseDetail: Enrolling in course:', id);
       const { error } = await supabase
         .from('enrollments')
         .insert([{
@@ -136,7 +180,7 @@ const StudentCourseDetail = () => {
         }]);
 
       if (error) {
-        console.error('Error enrolling in course:', error);
+        console.error('CourseDetail: Error enrolling in course:', error);
         toast({
           title: "Error",
           description: "Failed to enroll in course",
@@ -146,17 +190,73 @@ const StudentCourseDetail = () => {
       }
 
       setIsEnrolled(true);
+      
+      // Remove from wishlist if enrolled
+      if (isInWishlist) {
+        await supabase
+          .from('wishlist')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('course_id', id);
+        setIsInWishlist(false);
+      }
+
       toast({
         title: "Enrolled successfully!",
         description: `You are now enrolled in ${course?.title}`,
       });
     } catch (error) {
-      console.error('Error enrolling in course:', error);
+      console.error('CourseDetail: Error enrolling in course:', error);
       toast({
         title: "Error",
         description: "Failed to enroll in course",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleWishlist = async () => {
+    if (!id || !user) return;
+
+    try {
+      if (isInWishlist) {
+        const { error } = await supabase
+          .from('wishlist')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('course_id', id);
+
+        if (error) {
+          console.error('CourseDetail: Error removing from wishlist:', error);
+          return;
+        }
+
+        setIsInWishlist(false);
+        toast({
+          title: "Removed from wishlist",
+          description: `${course?.title} removed from your wishlist`,
+        });
+      } else {
+        const { error } = await supabase
+          .from('wishlist')
+          .insert([{
+            user_id: user.id,
+            course_id: id
+          }]);
+
+        if (error) {
+          console.error('CourseDetail: Error adding to wishlist:', error);
+          return;
+        }
+
+        setIsInWishlist(true);
+        toast({
+          title: "Added to wishlist",
+          description: `${course?.title} added to your wishlist`,
+        });
+      }
+    } catch (error) {
+      console.error('CourseDetail: Error updating wishlist:', error);
     }
   };
 
@@ -179,7 +279,14 @@ const StudentCourseDetail = () => {
       <div className="min-h-screen bg-gray-50">
         <Navbar />
         <div className="max-w-7xl mx-auto px-4 py-8">
-          <p className="text-center text-gray-500">Course not found.</p>
+          <div className="text-center py-12">
+            <BookOpen className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+            <h2 className="text-2xl font-semibold text-gray-600 mb-2">Course not found</h2>
+            <p className="text-gray-500 mb-6">The course you're looking for doesn't exist or has been removed.</p>
+            <Link to="/student/courses">
+              <Button>Browse All Courses</Button>
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -201,6 +308,9 @@ const StudentCourseDetail = () => {
                   src={course.thumbnail} 
                   alt={course.title} 
                   className="w-full h-64 object-cover rounded-lg mb-6"
+                  onError={(e) => {
+                    e.currentTarget.src = 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&h=400&fit=crop';
+                  }}
                 />
                 <div className="flex justify-between items-start mb-4">
                   <CardTitle className="text-3xl">{course.title}</CardTitle>
@@ -227,10 +337,12 @@ const StudentCourseDetail = () => {
                     <BookOpen className="w-4 h-4 mr-2" />
                     {modules.length} modules
                   </div>
-                  <div className="flex items-center">
-                    <Play className="w-4 h-4 mr-2" />
-                    {totalVideos} videos
-                  </div>
+                  {totalVideos > 0 && (
+                    <div className="flex items-center">
+                      <Play className="w-4 h-4 mr-2" />
+                      {totalVideos} videos
+                    </div>
+                  )}
                 </div>
                 
                 <p className="text-gray-600">Instructor: <span className="font-medium">{course.instructor}</span></p>
@@ -238,41 +350,43 @@ const StudentCourseDetail = () => {
             </Card>
 
             {/* Course Modules */}
-            <Card className="mt-6">
-              <CardHeader>
-                <CardTitle>Course Content</CardTitle>
-                <CardDescription>
-                  {modules.length} modules • {totalVideos} videos
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Accordion type="single" collapsible className="w-full">
-                  {modules.map((module, index) => (
-                    <AccordionItem key={module.id} value={`module-${index}`}>
-                      <AccordionTrigger className="text-left">
-                        <div>
-                          <h3 className="font-medium">{module.title}</h3>
-                          <p className="text-sm text-gray-500">{module.module_videos?.length || 0} videos</p>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        <div className="space-y-2">
-                          {module.module_videos?.map((video) => (
-                            <div key={video.id} className="flex items-center justify-between p-3 bg-gray-50 rounded">
-                              <div className="flex items-center">
-                                <Play className="w-4 h-4 mr-3 text-gray-400" />
-                                <span className="text-sm">{video.title}</span>
+            {modules.length > 0 && (
+              <Card className="mt-6">
+                <CardHeader>
+                  <CardTitle>Course Content</CardTitle>
+                  <CardDescription>
+                    {modules.length} modules • {totalVideos} videos
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Accordion type="single" collapsible className="w-full">
+                    {modules.map((module, index) => (
+                      <AccordionItem key={module.id} value={`module-${index}`}>
+                        <AccordionTrigger className="text-left">
+                          <div>
+                            <h3 className="font-medium">{module.title}</h3>
+                            <p className="text-sm text-gray-500">{module.module_videos?.length || 0} videos</p>
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <div className="space-y-2">
+                            {module.module_videos?.map((video) => (
+                              <div key={video.id} className="flex items-center justify-between p-3 bg-gray-50 rounded">
+                                <div className="flex items-center">
+                                  <Play className="w-4 h-4 mr-3 text-gray-400" />
+                                  <span className="text-sm">{video.title}</span>
+                                </div>
+                                <span className="text-xs text-gray-500">{video.duration}</span>
                               </div>
-                              <span className="text-xs text-gray-500">{video.duration}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  ))}
-                </Accordion>
-              </CardContent>
-            </Card>
+                            ))}
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Enrollment Card */}
@@ -300,6 +414,16 @@ const StudentCourseDetail = () => {
                     <Button onClick={handleEnroll} className="w-full">
                       Enroll Now
                     </Button>
+                    {user && (
+                      <Button 
+                        onClick={handleWishlist} 
+                        variant="outline" 
+                        className="w-full"
+                      >
+                        <Heart className={`w-4 h-4 mr-2 ${isInWishlist ? 'fill-current text-red-500' : ''}`} />
+                        {isInWishlist ? 'Remove from Wishlist' : 'Add to Wishlist'}
+                      </Button>
+                    )}
                     <p className="text-sm text-gray-600 text-center">
                       Get lifetime access to this course
                     </p>
