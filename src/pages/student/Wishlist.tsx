@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import Navbar from '../../components/Navbar';
+import Layout from '../../components/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Heart, Users, Clock, Trash2 } from 'lucide-react';
+import { Heart, Users, Clock, Trash2, Star, ShoppingCart } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '../../contexts/AuthContext';
@@ -144,7 +144,6 @@ const StudentWishlist = () => {
         return;
       }
 
-      // Remove from wishlist after successful enrollment
       const wishlistItem = wishlistItems.find(item => item.course_id === courseId);
       if (wishlistItem) {
         await removeFromWishlist(wishlistItem.id, courseTitle);
@@ -167,101 +166,143 @@ const StudentWishlist = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading wishlist...</p>
+      <Layout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center space-y-4">
+            <div className="w-16 h-16 bg-gradient-to-br from-pink-500/20 to-red-500/20 rounded-full flex items-center justify-center mx-auto">
+              <div className="animate-spin rounded-full h-8 w-8 border-2 border-pink-500 border-t-transparent"></div>
+            </div>
+            <p className="text-slate-600 font-medium">Loading wishlist...</p>
           </div>
         </div>
-      </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">My Wishlist</h1>
-          <p className="text-gray-600">Courses you want to take later</p>
+    <Layout>
+      <div className="max-w-7xl mx-auto px-6 py-12">
+        {/* Header */}
+        <div className="text-center mb-16">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-pink-500 to-red-600 rounded-2xl mb-6">
+            <Heart className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-slate-900 via-pink-800 to-red-800 bg-clip-text text-transparent mb-4">
+            My Wishlist
+          </h1>
+          <p className="text-xl text-slate-600 max-w-2xl mx-auto">
+            Courses you want to take later - your learning goals await
+          </p>
         </div>
 
         {wishlistItems.length === 0 ? (
-          <div className="text-center py-12">
-            <Heart className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-            <h2 className="text-2xl font-semibold text-gray-600 mb-2">Your wishlist is empty</h2>
-            <p className="text-gray-500 mb-6">Browse courses and add them to your wishlist</p>
+          <div className="text-center py-20">
+            <div className="relative">
+              <div className="w-32 h-32 bg-gradient-to-br from-pink-500/10 to-red-500/10 rounded-full flex items-center justify-center mx-auto mb-8">
+                <Heart className="w-16 h-16 text-slate-400" />
+              </div>
+              <div className="absolute inset-0 bg-gradient-to-r from-pink-500/5 to-red-500/5 rounded-full blur-xl"></div>
+            </div>
+            <h2 className="text-3xl font-bold text-slate-800 mb-4">Your wishlist is empty</h2>
+            <p className="text-lg text-slate-600 mb-8 max-w-md mx-auto">
+              Browse courses and add them to your wishlist for later
+            </p>
             <Link to="/student/courses">
-              <Button>Browse Courses</Button>
+              <Button size="lg" className="bg-gradient-to-r from-pink-600 to-red-600 hover:from-pink-700 hover:to-red-700 text-white px-8 py-3 shadow-xl hover:shadow-2xl transition-all duration-300">
+                <ShoppingCart className="w-5 h-5 mr-2" />
+                Browse Courses
+              </Button>
             </Link>
           </div>
         ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-8">
             {wishlistItems.map((item) => {
               const course = item.courses;
               return (
-                <Card key={item.id} className="hover:shadow-lg transition-shadow">
-                  <CardHeader>
+                <Card key={item.id} className="group border-0 shadow-lg hover:shadow-2xl transition-all duration-500 bg-white/90 backdrop-blur-lg overflow-hidden">
+                  <div className="relative">
                     <img 
                       src={course.thumbnail} 
                       alt={course.title} 
-                      className="w-full h-48 object-cover rounded-lg mb-4"
+                      className="w-full h-48 object-cover transition-transform duration-500 group-hover:scale-105"
                     />
-                    <div className="flex justify-between items-start mb-2">
-                      <CardTitle className="text-lg">{course.title}</CardTitle>
+                    <div className="absolute top-4 left-4">
+                      <div className={`px-3 py-1 rounded-full text-xs font-semibold backdrop-blur-lg ${
+                        course.difficulty === 'Beginner' ? 'bg-green-500/90 text-white' :
+                        course.difficulty === 'Average' ? 'bg-yellow-500/90 text-white' :
+                        'bg-red-500/90 text-white'
+                      }`}>
+                        {course.difficulty}
+                      </div>
+                    </div>
+                    <div className="absolute top-4 right-4">
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => removeFromWishlist(item.id, course.title)}
-                        className="p-1 text-red-500 hover:bg-red-50"
+                        className="p-2 bg-white/90 backdrop-blur-lg text-red-500 hover:bg-red-50 hover:text-red-700 rounded-full shadow-lg transition-all duration-300"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
-                    <span className={`px-2 py-1 rounded text-xs font-medium w-fit ${
-                      course.difficulty === 'Beginner' ? 'bg-green-100 text-green-800' :
-                      course.difficulty === 'Average' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
-                      {course.difficulty}
-                    </span>
-                    <CardDescription className="text-sm mt-2">{course.description}</CardDescription>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  </div>
+                  
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-lg font-bold text-slate-800 group-hover:text-pink-600 transition-colors line-clamp-2">
+                      {course.title}
+                    </CardTitle>
+                    <CardDescription className="text-slate-600 text-sm line-clamp-3">
+                      {course.description}
+                    </CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between text-sm text-gray-600 mb-4">
-                      <div className="flex items-center">
-                        <Users className="w-4 h-4 mr-1" />
-                        {course.enrollment_count} students
+                  
+                  <CardContent className="space-y-6">
+                    <div className="flex items-center justify-between text-sm text-slate-600">
+                      <div className="flex items-center space-x-1">
+                        <Users className="w-4 h-4" />
+                        <span>{course.enrollment_count} students</span>
                       </div>
-                      <div className="flex items-center">
-                        <Clock className="w-4 h-4 mr-1" />
-                        {course.duration}
+                      <div className="flex items-center space-x-1">
+                        <Clock className="w-4 h-4" />
+                        <span>{course.duration}</span>
                       </div>
                     </div>
-                    <p className="text-sm text-gray-600 mb-4">Instructor: {course.instructor}</p>
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="text-2xl font-bold text-green-600">
-                        ₹{course.price}
-                      </span>
+                    
+                    <div className="space-y-1">
+                      <p className="text-sm text-slate-600">Instructor</p>
+                      <p className="font-semibold text-slate-800">{course.instructor}</p>
                     </div>
-                    <div className="space-y-2">
+                    
+                    <div className="flex items-center justify-between border-t border-slate-100 pt-4">
+                      <div className="flex items-center space-x-1">
+                        <Star className="w-5 h-5 text-yellow-500" />
+                        <span className="text-2xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
+                          ₹{course.price}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex flex-col space-y-3">
                       {enrolledCourses.includes(course.id) ? (
                         <Link to={`/student/learn/${course.id}`}>
-                          <Button className="w-full">Continue Learning</Button>
+                          <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300">
+                            Continue Learning
+                          </Button>
                         </Link>
                       ) : (
                         <Button 
                           onClick={() => handleEnroll(course.id, course.title)}
-                          className="w-full"
+                          className="w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
                         >
+                          <ShoppingCart className="w-4 h-4 mr-2" />
                           Enroll Now
                         </Button>
                       )}
                       <Link to={`/student/courses/${course.id}`}>
-                        <Button variant="outline" className="w-full">View Details</Button>
+                        <Button variant="outline" className="w-full border-slate-300 hover:border-pink-500 hover:bg-pink-50 transition-all duration-300">
+                          View Details
+                        </Button>
                       </Link>
                     </div>
                   </CardContent>
@@ -271,7 +312,7 @@ const StudentWishlist = () => {
           </div>
         )}
       </div>
-    </div>
+    </Layout>
   );
 };
 

@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import Navbar from '../../components/Navbar';
+import Layout from '../../components/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Play, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Play, CheckCircle, PlayCircle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '../../contexts/AuthContext';
@@ -56,7 +55,6 @@ const StudentCoursePlayer = () => {
     }
   }, [courseId, user]);
 
-  // Calculate and update progress whenever completedVideos or modules change
   useEffect(() => {
     const totalVideos = modules.reduce((acc, module) => acc + (module.module_videos?.length || 0), 0);
     const completedCount = completedVideos.length;
@@ -69,7 +67,6 @@ const StudentCoursePlayer = () => {
       currentProgress
     });
 
-    // Only update if progress has changed
     if (progressPercentage !== currentProgress) {
       setCurrentProgress(progressPercentage);
       updateEnrollmentProgress(progressPercentage, completedVideos);
@@ -82,7 +79,6 @@ const StudentCoursePlayer = () => {
     try {
       console.log('Fetching course data for player:', courseId);
       
-      // Fetch course details
       const { data: courseData, error: courseError } = await supabase
         .from('courses')
         .select('*')
@@ -96,7 +92,6 @@ const StudentCoursePlayer = () => {
 
       setCourse(courseData);
 
-      // Fetch modules with videos
       const { data: modulesData, error: modulesError } = await supabase
         .from('course_modules')
         .select('*')
@@ -109,7 +104,6 @@ const StudentCoursePlayer = () => {
       }
 
       if (modulesData) {
-        // Fetch videos for each module separately
         const modulesWithVideos = await Promise.all(
           modulesData.map(async (module) => {
             const { data: videos, error: videosError } = await supabase
@@ -129,7 +123,6 @@ const StudentCoursePlayer = () => {
 
         setModules(modulesWithVideos);
         
-        // Set first video as current
         if (modulesWithVideos.length > 0 && modulesWithVideos[0].module_videos?.length > 0) {
           setCurrentVideo(modulesWithVideos[0].module_videos[0]);
         }
@@ -176,7 +169,6 @@ const StudentCoursePlayer = () => {
 
     try {
       if (isCompleted) {
-        // Mark as incomplete
         const { error } = await supabase
           .from('user_progress')
           .delete()
@@ -196,7 +188,6 @@ const StudentCoursePlayer = () => {
           description: "You can re-watch this video anytime",
         });
       } else {
-        // Mark as complete
         const { error } = await supabase
           .from('user_progress')
           .upsert([{
@@ -230,7 +221,6 @@ const StudentCoursePlayer = () => {
     try {
       console.log('Updating enrollment progress to:', progressPercentage);
 
-      // Update enrollment progress
       const { error } = await supabase
         .from('enrollments')
         .update({ progress: progressPercentage })
@@ -249,26 +239,26 @@ const StudentCoursePlayer = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading course...</p>
+      <Layout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center space-y-4">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full flex items-center justify-center mx-auto">
+              <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
+            </div>
+            <p className="text-slate-600 font-medium">Loading course...</p>
           </div>
         </div>
-      </div>
+      </Layout>
     );
   }
 
   if (!course) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          <p className="text-center text-gray-500">Course not found.</p>
+      <Layout>
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          <p className="text-center text-slate-500">Course not found.</p>
         </div>
-      </div>
+      </Layout>
     );
   }
 
@@ -276,50 +266,59 @@ const StudentCoursePlayer = () => {
   const completedCount = completedVideos.length;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      
-      <div className="max-w-7xl mx-auto px-4 py-8">
+    <Layout>
+      <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center">
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center space-x-4">
             <Link to="/student/mylearning">
-              <Button variant="ghost" className="mr-4">
+              <Button variant="ghost" className="text-slate-600 hover:text-blue-600 hover:bg-blue-50 transition-all duration-300">
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to My Learning
+                Back to Learning
               </Button>
             </Link>
+            <div className="h-8 w-px bg-slate-200"></div>
             <div>
-              <h1 className="text-2xl font-bold">{course.title}</h1>
-              <p className="text-gray-600">Progress: {currentProgress}% ({completedCount}/{totalVideos} videos)</p>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-slate-900 to-blue-800 bg-clip-text text-transparent">
+                {course.title}
+              </h1>
+              <p className="text-slate-600">
+                Progress: <span className="font-semibold text-blue-600">{currentProgress}%</span> 
+                <span className="text-slate-400 mx-2">•</span>
+                {completedCount}/{totalVideos} videos completed
+              </p>
             </div>
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-6">
+        <div className="grid lg:grid-cols-3 gap-8">
           {/* Video Player */}
           <div className="lg:col-span-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  {currentVideo?.title || 'Select a video to start'}
+            <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-lg overflow-hidden">
+              <CardHeader className="bg-gradient-to-r from-slate-50 to-blue-50/50">
+                <CardTitle className="flex items-center justify-between text-slate-800">
+                  <div className="flex items-center space-x-3">
+                    <PlayCircle className="w-6 h-6 text-blue-600" />
+                    <span>{currentVideo?.title || 'Select a video to start'}</span>
+                  </div>
                   {currentVideo && (
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-3">
                       <Checkbox
                         id={`video-${currentVideo.id}`}
                         checked={completedVideos.includes(currentVideo.id)}
                         onCheckedChange={() => toggleVideoCompletion(currentVideo.id)}
+                        className="border-blue-300"
                       />
-                      <label htmlFor={`video-${currentVideo.id}`} className="text-sm">
+                      <label htmlFor={`video-${currentVideo.id}`} className="text-sm font-medium text-slate-700 cursor-pointer">
                         Mark as completed
                       </label>
                     </div>
                   )}
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-0">
                 {currentVideo ? (
-                  <div className="aspect-video bg-black rounded-lg overflow-hidden">
+                  <div className="aspect-video bg-black">
                     <iframe
                       width="100%"
                       height="100%"
@@ -328,11 +327,15 @@ const StudentCoursePlayer = () => {
                       frameBorder="0"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                       allowFullScreen
+                      className="w-full h-full"
                     ></iframe>
                   </div>
                 ) : (
-                  <div className="aspect-video bg-gray-200 rounded-lg flex items-center justify-center">
-                    <p className="text-gray-500">Select a video to start learning</p>
+                  <div className="aspect-video bg-gradient-to-br from-slate-100 to-blue-50 flex items-center justify-center">
+                    <div className="text-center space-y-4">
+                      <PlayCircle className="w-16 h-16 text-slate-400 mx-auto" />
+                      <p className="text-slate-600 font-medium">Select a video to start learning</p>
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -341,46 +344,60 @@ const StudentCoursePlayer = () => {
 
           {/* Course Content */}
           <div className="lg:col-span-1">
-            <Card>
-              <CardHeader>
-                <CardTitle>Course Content</CardTitle>
+            <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-lg">
+              <CardHeader className="bg-gradient-to-r from-slate-50 to-purple-50/50">
+                <CardTitle className="text-slate-800 flex items-center space-x-2">
+                  <PlayCircle className="w-5 h-5 text-purple-600" />
+                  <span>Course Content</span>
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="max-h-[600px] overflow-y-auto">
                 {modules.length > 0 ? (
-                  modules.map((module) => (
-                    <div key={module.id} className="space-y-2">
-                      <h3 className="font-medium text-sm border-b pb-2">{module.title}</h3>
-                      {module.module_videos?.map((video) => {
-                        const isCompleted = completedVideos.includes(video.id);
-                        const isCurrent = currentVideo?.id === video.id;
-                        
-                        return (
-                          <div
-                            key={video.id}
-                            className={`flex items-center space-x-3 p-2 rounded cursor-pointer transition-colors ${
-                              isCurrent ? 'bg-blue-100 border border-blue-300' : 'hover:bg-gray-100'
-                            }`}
-                            onClick={() => setCurrentVideo(video)}
-                          >
-                            {isCompleted ? (
-                              <CheckCircle className="w-4 h-4 text-green-500" />
-                            ) : (
-                              <Play className="w-4 h-4 text-gray-400" />
-                            )}
-                            <div className="flex-1">
-                              <p className={`text-sm ${isCurrent ? 'font-medium text-blue-700' : ''}`}>
-                                {video.title}
-                              </p>
-                              <p className="text-xs text-gray-500">{video.duration}</p>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ))
+                  <div className="space-y-6">
+                    {modules.map((module) => (
+                      <div key={module.id} className="space-y-3">
+                        <h3 className="font-semibold text-slate-800 border-b border-slate-200 pb-2">
+                          {module.title}
+                        </h3>
+                        <div className="space-y-2">
+                          {module.module_videos?.map((video) => {
+                            const isCompleted = completedVideos.includes(video.id);
+                            const isCurrent = currentVideo?.id === video.id;
+                            
+                            return (
+                              <div
+                                key={video.id}
+                                className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer transition-all duration-300 ${
+                                  isCurrent 
+                                    ? 'bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 shadow-md' 
+                                    : 'hover:bg-slate-50 border border-transparent hover:border-slate-200'
+                                }`}
+                                onClick={() => setCurrentVideo(video)}
+                              >
+                                {isCompleted ? (
+                                  <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                                ) : (
+                                  <Play className="w-5 h-5 text-slate-400 flex-shrink-0" />
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-sm font-medium truncate ${
+                                    isCurrent ? 'text-blue-700' : 'text-slate-700'
+                                  }`}>
+                                    {video.title}
+                                  </p>
+                                  <p className="text-xs text-slate-500">{video.duration}</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 ) : (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500">No course content available yet.</p>
+                  <div className="text-center py-12">
+                    <PlayCircle className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                    <p className="text-slate-600">No course content available yet.</p>
                   </div>
                 )}
               </CardContent>
@@ -388,7 +405,7 @@ const StudentCoursePlayer = () => {
           </div>
         </div>
       </div>
-    </div>
+    </Layout>
   );
 };
 
