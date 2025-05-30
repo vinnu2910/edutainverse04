@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Navbar from '../../components/Navbar';
+import Layout from '../../components/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -73,7 +73,6 @@ const AdminCourseEditor = () => {
       setLoading(true);
       console.log('CourseEditor: Loading course:', id);
       
-      // Load course basic info
       const { data: courseData, error: courseError } = await supabase
         .from('courses')
         .select('*')
@@ -90,7 +89,6 @@ const AdminCourseEditor = () => {
         return;
       }
 
-      // Load course modules
       const { data: modulesData, error: modulesError } = await supabase
         .from('course_modules')
         .select('*')
@@ -101,7 +99,6 @@ const AdminCourseEditor = () => {
         console.error('CourseEditor: Error loading modules:', modulesError);
       }
 
-      // Load all videos for the modules
       const moduleIds = modulesData?.map(m => m.id) || [];
       let videosData: any[] = [];
       
@@ -119,7 +116,6 @@ const AdminCourseEditor = () => {
         }
       }
 
-      // Combine modules with their videos - map youtube_url to youtube_id for frontend
       const modulesWithVideos = modulesData?.map(module => ({
         id: module.id,
         title: module.title,
@@ -128,7 +124,7 @@ const AdminCourseEditor = () => {
         videos: videosData.filter(video => video.module_id === module.id).map(video => ({
           id: video.id,
           title: video.title,
-          youtube_id: video.youtube_url, // Map youtube_url from DB to youtube_id for frontend
+          youtube_id: video.youtube_url,
           duration: video.duration,
           order_index: video.order_index
         }))
@@ -301,12 +297,10 @@ const AdminCourseEditor = () => {
         }
       }
 
-      // Save modules and videos
       for (const module of course.modules) {
         let moduleId = module.id;
         
         if (module.id.startsWith('temp-')) {
-          // Create new module
           const { data: moduleData, error: moduleError } = await supabase
             .from('course_modules')
             .insert([{
@@ -325,7 +319,6 @@ const AdminCourseEditor = () => {
           
           moduleId = moduleData.id;
         } else {
-          // Update existing module
           await supabase
             .from('course_modules')
             .update({
@@ -336,26 +329,23 @@ const AdminCourseEditor = () => {
             .eq('id', module.id);
         }
 
-        // Save videos - Fix the field mapping issue
         for (const video of module.videos) {
           if (video.id.startsWith('temp-')) {
-            // Create new video - map youtube_id to youtube_url for database
             await supabase
               .from('module_videos')
               .insert([{
                 module_id: moduleId,
                 title: video.title,
-                youtube_url: video.youtube_id, // Map youtube_id from frontend to youtube_url for DB
+                youtube_url: video.youtube_id,
                 duration: video.duration,
                 order_index: video.order_index
               }]);
           } else {
-            // Update existing video - map youtube_id to youtube_url for database
             await supabase
               .from('module_videos')
               .update({
                 title: video.title,
-                youtube_url: video.youtube_id, // Map youtube_id from frontend to youtube_url for DB
+                youtube_url: video.youtube_id,
                 duration: video.duration,
                 order_index: video.order_index
               })
@@ -386,92 +376,92 @@ const AdminCourseEditor = () => {
 
   if (loading && !isNewCourse) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
+      <Layout>
         <div className="flex items-center justify-center py-20">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading course...</p>
+            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-slate-600 mx-auto"></div>
+            <p className="mt-4 text-slate-600">Loading course...</p>
           </div>
         </div>
-      </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      
+    <Layout>
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="mb-8 flex items-center gap-4">
           <Button 
             variant="outline" 
             onClick={() => navigate('/admin/courses')}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 border-slate-300 hover:bg-slate-100 text-slate-700"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to Courses
           </Button>
           <div>
-            <h1 className="text-4xl font-bold mb-2">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent mb-2">
               {isNewCourse ? 'Create New Course' : 'Edit Course'}
             </h1>
-            <p className="text-gray-600">
+            <p className="text-slate-600">
               {isNewCourse ? 'Create and configure your new course' : 'Update course information and content'}
             </p>
           </div>
         </div>
 
         <Tabs defaultValue="basic" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="basic">Basic Information</TabsTrigger>
-            <TabsTrigger value="content">Course Content</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 bg-slate-100">
+            <TabsTrigger value="basic" className="data-[state=active]:bg-white data-[state=active]:text-slate-900">Basic Information</TabsTrigger>
+            <TabsTrigger value="content" className="data-[state=active]:bg-white data-[state=active]:text-slate-900">Course Content</TabsTrigger>
           </TabsList>
 
           <TabsContent value="basic">
-            <Card>
+            <Card className="bg-white/70 backdrop-blur-lg border-slate-200/50 shadow-xl">
               <CardHeader>
-                <CardTitle>Basic Course Information</CardTitle>
-                <CardDescription>Enter the basic details of your course</CardDescription>
+                <CardTitle className="text-slate-900">Basic Course Information</CardTitle>
+                <CardDescription className="text-slate-600">Enter the basic details of your course</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="title">Course Title *</Label>
+                    <Label htmlFor="title" className="text-slate-700">Course Title *</Label>
                     <Input
                       id="title"
                       value={course.title}
                       onChange={(e) => setCourse({ ...course, title: e.target.value })}
                       placeholder="Enter course title"
+                      className="border-slate-300 focus:border-blue-500"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="instructor">Instructor *</Label>
+                    <Label htmlFor="instructor" className="text-slate-700">Instructor *</Label>
                     <Input
                       id="instructor"
                       value={course.instructor}
                       onChange={(e) => setCourse({ ...course, instructor: e.target.value })}
                       placeholder="Instructor name"
+                      className="border-slate-300 focus:border-blue-500"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <Label htmlFor="description">Description *</Label>
+                  <Label htmlFor="description" className="text-slate-700">Description *</Label>
                   <Textarea
                     id="description"
                     value={course.description}
                     onChange={(e) => setCourse({ ...course, description: e.target.value })}
                     placeholder="Course description"
                     rows={4}
+                    className="border-slate-300 focus:border-blue-500"
                   />
                 </div>
 
                 <div className="grid md:grid-cols-3 gap-4">
                   <div>
-                    <Label htmlFor="difficulty">Difficulty</Label>
+                    <Label htmlFor="difficulty" className="text-slate-700">Difficulty</Label>
                     <Select value={course.difficulty} onValueChange={(value) => setCourse({ ...course, difficulty: value })}>
-                      <SelectTrigger>
+                      <SelectTrigger className="border-slate-300">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -482,43 +472,47 @@ const AdminCourseEditor = () => {
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor="price">Price (₹)</Label>
+                    <Label htmlFor="price" className="text-slate-700">Price (₹)</Label>
                     <Input
                       id="price"
                       type="number"
                       value={course.price}
                       onChange={(e) => setCourse({ ...course, price: Number(e.target.value) })}
                       placeholder="0"
+                      className="border-slate-300 focus:border-blue-500"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="duration">Duration</Label>
+                    <Label htmlFor="duration" className="text-slate-700">Duration</Label>
                     <Input
                       id="duration"
                       value={course.duration}
                       onChange={(e) => setCourse({ ...course, duration: e.target.value })}
                       placeholder="e.g., 8 hours"
+                      className="border-slate-300 focus:border-blue-500"
                     />
                   </div>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="category">Category</Label>
+                    <Label htmlFor="category" className="text-slate-700">Category</Label>
                     <Input
                       id="category"
                       value={course.category}
                       onChange={(e) => setCourse({ ...course, category: e.target.value })}
                       placeholder="Course category"
+                      className="border-slate-300 focus:border-blue-500"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="thumbnail">Thumbnail URL</Label>
+                    <Label htmlFor="thumbnail" className="text-slate-700">Thumbnail URL</Label>
                     <Input
                       id="thumbnail"
                       value={course.thumbnail}
                       onChange={(e) => setCourse({ ...course, thumbnail: e.target.value })}
                       placeholder="https://example.com/image.jpg"
+                      className="border-slate-300 focus:border-blue-500"
                     />
                   </div>
                 </div>
@@ -527,14 +521,14 @@ const AdminCourseEditor = () => {
           </TabsContent>
 
           <TabsContent value="content">
-            <Card>
+            <Card className="bg-white/70 backdrop-blur-lg border-slate-200/50 shadow-xl">
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <div>
-                    <CardTitle>Course Content</CardTitle>
-                    <CardDescription>Add modules and videos to your course</CardDescription>
+                    <CardTitle className="text-slate-900">Course Content</CardTitle>
+                    <CardDescription className="text-slate-600">Add modules and videos to your course</CardDescription>
                   </div>
-                  <Button onClick={addModule}>
+                  <Button onClick={addModule} className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white">
                     <Plus className="w-4 h-4 mr-2" />
                     Add Module
                   </Button>
@@ -543,12 +537,12 @@ const AdminCourseEditor = () => {
               <CardContent className="space-y-6">
                 {course.modules.length === 0 ? (
                   <div className="text-center py-12">
-                    <Video className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-                    <h3 className="text-lg font-medium text-gray-600 mb-2">No modules yet</h3>
-                    <p className="text-gray-500 mb-4">
+                    <Video className="w-16 h-16 mx-auto text-slate-400 mb-4" />
+                    <h3 className="text-lg font-medium text-slate-600 mb-2">No modules yet</h3>
+                    <p className="text-slate-500 mb-4">
                       Start building your course by adding modules and videos.
                     </p>
-                    <Button onClick={addModule}>
+                    <Button onClick={addModule} className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white">
                       <Plus className="w-4 h-4 mr-2" />
                       Add Your First Module
                     </Button>
@@ -556,25 +550,27 @@ const AdminCourseEditor = () => {
                 ) : (
                   <div className="space-y-6">
                     {course.modules.map((module, moduleIndex) => (
-                      <Card key={module.id} className="border-l-4 border-l-blue-500">
+                      <Card key={module.id} className="border-l-4 border-l-blue-500 bg-white/50">
                         <CardHeader>
                           <div className="flex justify-between items-start">
                             <div className="flex-1 space-y-4">
                               <div>
-                                <Label>Module Title</Label>
+                                <Label className="text-slate-700">Module Title</Label>
                                 <Input
                                   value={module.title}
                                   onChange={(e) => updateModule(module.id, 'title', e.target.value)}
                                   placeholder="Enter module title"
+                                  className="border-slate-300 focus:border-blue-500"
                                 />
                               </div>
                               <div>
-                                <Label>Module Description</Label>
+                                <Label className="text-slate-700">Module Description</Label>
                                 <Textarea
                                   value={module.description}
                                   onChange={(e) => updateModule(module.id, 'description', e.target.value)}
                                   placeholder="Enter module description"
                                   rows={2}
+                                  className="border-slate-300 focus:border-blue-500"
                                 />
                               </div>
                             </div>
@@ -582,7 +578,7 @@ const AdminCourseEditor = () => {
                               variant="outline"
                               size="sm"
                               onClick={() => deleteModule(module.id)}
-                              className="ml-4"
+                              className="ml-4 border-red-300 text-red-600 hover:bg-red-50"
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
@@ -590,11 +586,12 @@ const AdminCourseEditor = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="flex justify-between items-center mb-4">
-                            <h4 className="font-medium">Videos</h4>
+                            <h4 className="font-medium text-slate-700">Videos</h4>
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => addVideo(module.id)}
+                              className="border-slate-300 hover:bg-slate-100 text-slate-700"
                             >
                               <Plus className="w-4 h-4 mr-2" />
                               Add Video
@@ -602,37 +599,40 @@ const AdminCourseEditor = () => {
                           </div>
                           
                           {module.videos.length === 0 ? (
-                            <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
-                              <Video className="w-8 h-8 mx-auto text-gray-400 mb-2" />
-                              <p className="text-gray-500">No videos in this module</p>
+                            <div className="text-center py-8 border-2 border-dashed border-slate-200 rounded-lg">
+                              <Video className="w-8 h-8 mx-auto text-slate-400 mb-2" />
+                              <p className="text-slate-500">No videos in this module</p>
                             </div>
                           ) : (
                             <div className="space-y-4">
                               {module.videos.map((video, videoIndex) => (
-                                <div key={video.id} className="flex gap-4 p-4 border rounded-lg">
+                                <div key={video.id} className="flex gap-4 p-4 border border-slate-200 rounded-lg bg-white/50">
                                   <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div>
-                                      <Label>Video Title</Label>
+                                      <Label className="text-slate-700">Video Title</Label>
                                       <Input
                                         value={video.title}
                                         onChange={(e) => updateVideo(module.id, video.id, 'title', e.target.value)}
                                         placeholder="Enter video title"
+                                        className="border-slate-300 focus:border-blue-500"
                                       />
                                     </div>
                                     <div>
-                                      <Label>YouTube ID</Label>
+                                      <Label className="text-slate-700">YouTube ID</Label>
                                       <Input
                                         value={video.youtube_id}
                                         onChange={(e) => updateVideo(module.id, video.id, 'youtube_id', e.target.value)}
                                         placeholder="YouTube video ID"
+                                        className="border-slate-300 focus:border-blue-500"
                                       />
                                     </div>
                                     <div>
-                                      <Label>Duration</Label>
+                                      <Label className="text-slate-700">Duration</Label>
                                       <Input
                                         value={video.duration}
                                         onChange={(e) => updateVideo(module.id, video.id, 'duration', e.target.value)}
                                         placeholder="e.g., 10:30"
+                                        className="border-slate-300 focus:border-blue-500"
                                       />
                                     </div>
                                   </div>
@@ -640,6 +640,7 @@ const AdminCourseEditor = () => {
                                     variant="outline"
                                     size="sm"
                                     onClick={() => deleteVideo(module.id, video.id)}
+                                    className="border-red-300 text-red-600 hover:bg-red-50"
                                   >
                                     <Trash2 className="w-4 h-4" />
                                   </Button>
@@ -658,16 +659,16 @@ const AdminCourseEditor = () => {
         </Tabs>
 
         <div className="mt-8 flex justify-end gap-4">
-          <Button variant="outline" onClick={() => navigate('/admin/courses')}>
+          <Button variant="outline" onClick={() => navigate('/admin/courses')} className="border-slate-300 hover:bg-slate-100 text-slate-700">
             Cancel
           </Button>
-          <Button onClick={saveCourse} disabled={loading} size="lg">
+          <Button onClick={saveCourse} disabled={loading} size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200">
             <Save className="w-4 h-4 mr-2" />
             {loading ? 'Saving...' : isNewCourse ? 'Create Course' : 'Update Course'}
           </Button>
         </div>
       </div>
-    </div>
+    </Layout>
   );
 };
 
